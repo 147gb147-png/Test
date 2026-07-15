@@ -166,7 +166,7 @@ AA.defaults = (function () {
 
   function blank() {
     return {
-      version: 2,
+      version: 3,
       settings: { companyName: '', defaultRep: '' },
       testDefs: AA.util.clone(TESTS),
       templates: AA.util.clone(TEMPLATES),
@@ -228,9 +228,9 @@ AA.defaults = (function () {
     d.settings.defaultRep = 'A. Rivera';
 
     var sites = [
-      { name: 'Riverside Hospital', contact: 'M. Okafor (Chief Engineer)', phone: '(614) 555-0142', email: 'engineering@riversidehosp.example', address: { line1: '1200 River Rd', city: 'Columbus', region: 'OH', postal: '43215', country: 'USA' }, lat: 39.9702, lng: -83.0150, notes: 'Access via loading dock B. Boiler room badge required.', systems: ['boiler', 'cooling_tower'], offsetDays: 0, interval: 7 },
-      { name: 'Maplewood Foods Plant', contact: 'S. Grant (Maintenance Lead)', phone: '(216) 555-0187', email: 'maintenance@maplewoodfoods.example', address: { line1: '450 Industrial Pkwy', city: 'Cleveland', region: 'OH', postal: '44113', country: 'USA' }, lat: 41.4820, lng: -81.7040, notes: 'Steam used for process cooking — condensate quality critical.', systems: ['boiler'], offsetDays: 11, interval: 7 },
-      { name: 'Lakeside Office Tower', contact: 'D. Kim (Property Manager)', phone: '(312) 555-0116', email: 'ops@lakesidetower.example', address: { line1: '233 W Lake St', city: 'Chicago', region: 'IL', postal: '60606', country: 'USA' }, lat: 41.8858, lng: -87.6355, notes: 'Two-cell tower on roof; seasonal shutdown Nov–Mar. Chilled loop serves floors 1–22.', systems: ['cooling_tower', 'closed_loop'], offsetDays: 1, interval: 7 }
+      { name: 'Riverside Hospital', contact: 'M. Okafor (Chief Engineer)', phone: '(614) 555-0142', email: 'engineering@riversidehosp.example', address: { line1: '1200 River Rd', city: 'Columbus', region: 'OH', postal: '43215', country: 'USA' }, lat: 39.9702, lng: -83.0150, notes: 'Access via loading dock B. Boiler room badge required.', systems: ['boiler', 'cooling_tower'], offsetDays: 0, freq: 'weekly' },
+      { name: 'Maplewood Foods Plant', contact: 'S. Grant (Maintenance Lead)', phone: '(216) 555-0187', email: 'maintenance@maplewoodfoods.example', address: { line1: '450 Industrial Pkwy', city: 'Cleveland', region: 'OH', postal: '44113', country: 'USA' }, lat: 41.4820, lng: -81.7040, notes: 'Steam used for process cooking — condensate quality critical.', systems: ['boiler'], offsetDays: 20, freq: 'monthly' },
+      { name: 'Lakeside Office Tower', contact: 'D. Kim (Property Manager)', phone: '(312) 555-0116', email: 'ops@lakesidetower.example', address: { line1: '233 W Lake St', city: 'Chicago', region: 'IL', postal: '60606', country: 'USA' }, lat: 41.8858, lng: -87.6355, notes: 'Two-cell tower on roof; seasonal shutdown Nov–Mar. Chilled loop serves floors 1–22.', systems: ['cooling_tower', 'closed_loop'], offsetDays: 1, freq: 'monthly' }
     ];
 
     var reps = ['A. Rivera', 'J. Chen'];
@@ -240,7 +240,7 @@ AA.defaults = (function () {
       var site = {
         id: u.id(), name: s.name, contact: s.contact, phone: s.phone, email: s.email,
         address: s.address, lat: s.lat, lng: s.lng, notes: s.notes,
-        repId: null, serviceIntervalDays: s.interval,
+        repId: null, visitFrequency: s.freq,
         createdAt: u.daysAgoISO(120), _ts: 1
       };
       d.sites.push(site);

@@ -141,13 +141,23 @@ AA.store = (function () {
     if (!d.version || d.version < 2) {
       d.sites.forEach(function (s) {
         if (s.repId === undefined) s.repId = null;
-        if (s.serviceIntervalDays === undefined) s.serviceIntervalDays = null;
       });
       /* offer the closed-loop template to existing v1 workspaces too */
       if (!d.templates.closed_loop && AA.defaults.CLOSED_LOOP) {
         d.templates.closed_loop = AA.util.clone(AA.defaults.CLOSED_LOOP);
       }
       d.version = 2;
+    }
+    if (d.version < 3) {
+      /* interval-days schedule -> calendar visit frequency */
+      d.sites.forEach(function (s) {
+        if (s.visitFrequency === undefined) {
+          var iv = s.serviceIntervalDays;
+          s.visitFrequency = iv == null ? null : (iv <= 10 ? 'weekly' : (iv <= 45 ? 'monthly' : 'quarterly'));
+        }
+        delete s.serviceIntervalDays;
+      });
+      d.version = 3;
     }
   };
 
@@ -557,23 +567,92 @@ AA.store = (function () {
     return items;
   };
 
-  /* Sites past their service interval (AA-style "no data entered" alert). */
-  S.overdueSites = function (siteIds) {
-    var out = [];
-    var today = AA.util.todayISO();
+  /* ------------------------------------------- visit schedule & progress
+   * Each site can carry a visitFrequency: 'weekly' | 'monthly' | 'quarterly'.
+   * A site is "completed" when it has a visit inside the CURRENT calendar
+   * period (week starting Monday / calendar month / calendar quarter) — so
+   * the count automatically resets to 0/N at the start of every period. */
+
+  S.FREQUENCIES = [
+    ['weekly', 'Weekly'], ['monthly', 'Monthly'], ['quarterly', 'Quarterly']
+  ];
+
+  S.freqLabel = function (freq) {
+    var f = S.FREQUENCIES.find(function (x) { return x[0] === freq; });
+    return f ? f[1] : 'No schedule';
+  };
+
+  function isoOf(d) {
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+
+  /* First day of the current period for a frequency (ISO), or null */
+  S.periodStart = function (freq) {
+    var d = new Date(AA.util.todayISO() + 'T00:00:00');
+    if (freq === 'weekly') {
+      d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); /* back to Monday */
+    } else if (freq === 'monthly') {
+      d.setDate(1);
+    } else if (freq === 'quarterly') {
+      d.setMonth(Math.floor(d.getMonth() / 3) * 3, 1);
+    } else {
+      return null;
+    }
+    return isoOf(d);
+  };
+
+  /* Human name of the current period, e.g. "July", "week of Jul 13", "Q3 2026" */
+  S.periodLabel = function (freq) {
+    var start = S.periodStart(freq);
+    if (!start) return '';
+    var d = new Date(start + 'T00:00:00');
+    if (freq === 'weekly') return 'week of ' + AA.util.fmtDateShort(start);
+    if (freq === 'monthly') return d.toLocaleDateString(undefined, { month: 'long' });
+    return 'Q' + (Math.floor(d.getMonth() / 3) + 1) + ' ' + d.getFullYear();
+  };
+
+  S.daysLeftInPeriod = function (freq) {
+    var start = S.periodStart(freq);
+    if (!start) return null;
+    var d = new Date(start + 'T00:00:00');
+    if (freq === 'weekly') d.setDate(d.getDate() + 7);
+    else if (freq === 'monthly') d.setMonth(d.getMonth() + 1);
+    else d.setMonth(d.getMonth() + 3);
+    return AA.util.daysBetween(AA.util.todayISO(), isoOf(d));
+  };
+
+  /* {scheduled, completed, lastVisit, periodStart, label} for one site */
+  S.siteVisitStatus = function (site) {
+    var freq = site.visitFrequency;
+    var visits = S.visitsOf(site.id);
+    var last = visits.length ? visits[0].date : null;
+    if (!freq) return { scheduled: false, completed: false, lastVisit: last };
+    var ps = S.periodStart(freq);
+    return {
+      scheduled: true,
+      freq: freq,
+      completed: !!last && last >= ps,
+      lastVisit: last,
+      periodStart: ps,
+      label: S.periodLabel(freq),
+      daysLeft: S.daysLeftInPeriod(freq)
+    };
+  };
+
+  /* Progress across a scope: done/total scheduled sites + who's still due.
+   * Resets automatically because completion is judged per current period. */
+  S.visitProgress = function (siteIds) {
+    var done = 0, total = 0, due = [];
     S.data.sites.forEach(function (s) {
       if (siteIds && !siteIds[s.id]) return;
-      var interval = s.serviceIntervalDays;
-      if (!interval) return;
-      var visits = S.visitsOf(s.id);
-      var last = visits.length ? visits[0].date : null;
-      var since = last ? AA.util.daysBetween(last, today) : null;
-      if (last == null || since > interval) {
-        out.push({ site: s, lastVisit: last, daysSince: since, interval: interval, overdueBy: last == null ? null : since - interval });
-      }
+      var st = S.siteVisitStatus(s);
+      if (!st.scheduled) return;
+      total++;
+      if (st.completed) done++;
+      else due.push({ site: s, status: st });
     });
-    out.sort(function (a, b) { return (b.overdueBy || 9999) - (a.overdueBy || 9999); });
-    return out;
+    due.sort(function (a, b) { return (a.status.daysLeft || 999) - (b.status.daysLeft || 999); });
+    return { done: done, total: total, due: due, pct: total ? Math.round(100 * done / total) : null };
   };
 
   /* ------------------------------------------------------ product inventory */

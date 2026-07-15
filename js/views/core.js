@@ -7,7 +7,7 @@ AA.forms = AA.forms || {};
 /* Open the add/edit site modal. onDone(site) is called after save. */
 AA.forms.site = function (existing, onDone) {
   var u = AA.util;
-  var s = existing || { name: '', contact: '', phone: '', email: '', address: { line1: '', city: '', region: '', postal: '', country: '' }, lat: null, lng: null, notes: '', repId: null, serviceIntervalDays: null };
+  var s = existing || { name: '', contact: '', phone: '', email: '', address: { line1: '', city: '', region: '', postal: '', country: '' }, lat: null, lng: null, notes: '', repId: null, visitFrequency: null };
   var a = s.address || {};
   var isAdmin = !AA.auth.user || AA.auth.user.role === 'admin';
 
@@ -33,7 +33,12 @@ AA.forms.site = function (existing, onDone) {
       '</div>' +
       '<div class="f-row">' +
       repField +
-      '  <label class="f">Service interval <span class="f-hint">(days between visits — flags the site as overdue)</span><input name="interval" type="number" min="1" value="' + (s.serviceIntervalDays != null ? s.serviceIntervalDays : '') + '" placeholder="e.g. 7, 30 — blank = no schedule"></label>' +
+      '  <label class="f">Visit frequency <span class="f-hint">(how often this site must be visited — progress resets each period)</span><select name="freq">' +
+      '<option value="">No schedule</option>' +
+      AA.store.FREQUENCIES.map(function (fr) {
+        return '<option value="' + fr[0] + '"' + (s.visitFrequency === fr[0] ? ' selected' : '') + '>' + fr[1] + '</option>';
+      }).join('') +
+      '</select></label>' +
       '</div>' +
       '<label class="f">Street address<input name="line1" value="' + u.esc(a.line1 || '') + '" placeholder="1200 River Rd"></label>' +
       '<div class="f-row-3">' +
@@ -62,7 +67,7 @@ AA.forms.site = function (existing, onDone) {
           postal: f.postal.value.trim(), country: f.country.value.trim()
         },
         lat: AA.util.num(f.lat.value), lng: AA.util.num(f.lng.value),
-        serviceIntervalDays: AA.util.num(f.interval.value),
+        visitFrequency: f.freq.value || null,
         notes: f.notes.value.trim()
       };
       if (f.repId) patch.repId = f.repId.value || null;
@@ -158,7 +163,7 @@ AA.views.dashboard = function (root) {
   var cutoff = u.daysAgoISO(30);
   var visits30 = d.visits.filter(function (v) { return scope[v.siteId] && v.date >= cutoff; }).length;
   var actions = st.actionItems(null, scope);
-  var overdue = st.overdueSites(scope);
+  var progress = st.visitProgress(scope);
   var lowInv = st.lowInventory(scope);
   var kpi = st.inRangeKPI(30, scope);
 
@@ -176,9 +181,13 @@ AA.views.dashboard = function (root) {
     '<div class="tile"><div class="t-label">Results in range · 30d</div><div class="t-value">' + (kpi ? kpi.pct + '%' : '—') + '</div>' + (kpi ? '<div class="t-note">of ' + kpi.total + ' readings</div>' : '<div class="t-note">no recent readings</div>') + '</div>' +
     '<div class="tile' + (actions.length ? ' alert' : '') + '"><div class="t-label">Out-of-range · latest</div><div class="t-value">' + actions.length + '</div>' +
     '<div class="t-note">' + (actions.length ? 'needs attention' : 'all within range') + '</div></div>' +
-    '<div class="tile' + (overdue.length ? ' alert' : '') + '"><div class="t-label">Overdue visits</div><div class="t-value">' + overdue.length + '</div>' +
-    '<div class="t-note">' + (overdue.length ? 'past service interval' : 'on schedule') + '</div></div>' +
-    '</div>';
+    '<div class="tile"><div class="t-label">Visits completed · this period</div>' +
+    (progress.total
+      ? '<div class="t-value">' + progress.done + '<span class="t-of">/' + progress.total + '</span></div>' +
+        '<div class="meter" role="img" aria-label="' + progress.pct + '% of scheduled sites visited"><div class="meter-fill" style="width:' + progress.pct + '%"></div></div>' +
+        '<div class="t-note">' + (progress.due.length ? progress.due.length + ' site' + (progress.due.length > 1 ? 's' : '') + ' still due' : 'all scheduled sites visited ✓') + '</div>'
+      : '<div class="t-value">—</div><div class="t-note">no visit schedules set</div>') +
+    '</div></div>';
 
   /* action items */
   html += '<div class="card"><h2>⚠ Action items</h2>';
@@ -212,16 +221,18 @@ AA.views.dashboard = function (root) {
   }
   html += '</div>';
 
-  /* overdue visits */
-  if (overdue.length) {
-    html += '<div class="card"><h2>📅 Overdue visits</h2><div class="table-wrap"><table class="data"><thead><tr>' +
-      '<th>Site</th><th>Last visit</th><th class="num">Days since</th><th class="num">Interval</th><th></th></tr></thead><tbody>';
-    overdue.forEach(function (o) {
+  /* sites still due this period */
+  if (progress.due.length) {
+    html += '<div class="card"><h2>📅 Due this period · ' + progress.done + '/' + progress.total + ' completed</h2>' +
+      '<div class="table-wrap"><table class="data"><thead><tr>' +
+      '<th>Site</th><th>Schedule</th><th>Period</th><th>Last visit</th><th class="num">Days left</th><th></th></tr></thead><tbody>';
+    progress.due.forEach(function (o) {
       html += '<tr class="rowlink" data-href="#/site/' + o.site.id + '">' +
         '<td><strong>' + u.esc(o.site.name) + '</strong></td>' +
-        '<td class="td-sub">' + (o.lastVisit ? u.fmtDate(o.lastVisit) : 'never visited') + '</td>' +
-        '<td class="num">' + (o.daysSince != null ? o.daysSince : '—') + '</td>' +
-        '<td class="num">' + o.interval + '</td>' +
+        '<td><span class="chip chip-none">' + u.esc(st.freqLabel(o.status.freq)) + '</span></td>' +
+        '<td class="td-sub">' + u.esc(o.status.label) + '</td>' +
+        '<td class="td-sub">' + (o.status.lastVisit ? u.fmtDate(o.status.lastVisit) : 'never visited') + '</td>' +
+        '<td class="num">' + o.status.daysLeft + '</td>' +
         '<td class="td-sub"><a href="#/visit/new?site=' + o.site.id + '">record visit →</a></td></tr>';
     });
     html += '</tbody></table></div></div>';
@@ -275,23 +286,32 @@ AA.views.sites = function (root) {
       (AA.auth.user && AA.auth.user.role === 'rep' ? '<br>Add a site (it will be assigned to you), or ask your admin to assign existing sites.' : '') +
       '</div></div>';
   } else {
+    var prog = st.visitProgress((function () { var m = {}; sites.forEach(function (s) { m[s.id] = true; }); return m; })());
+    if (prog.total) {
+      html += '<div class="filter-row"><span class="progress-inline">This period: <strong>' + prog.done + '/' + prog.total + '</strong> scheduled sites visited' +
+        '<span class="meter meter-inline"><span class="meter-fill" style="width:' + prog.pct + '%"></span></span></span></div>';
+    }
     html += '<div class="card"><div class="table-wrap"><table class="data"><thead><tr>' +
-      '<th>Site</th><th>Address</th>' + (showRepCol ? '<th>Rep</th>' : '') + '<th>Systems</th><th>Last visit</th><th class="num">Open flags</th></tr></thead><tbody>';
+      '<th>Site</th><th>Address</th>' + (showRepCol ? '<th>Rep</th>' : '') + '<th>Systems</th><th>Last visit</th><th>This period</th><th class="num">Open flags</th></tr></thead><tbody>';
     sites.forEach(function (s) {
       var systems = st.systemsOf(s.id);
-      var visits = st.visitsOf(s.id);
       var flags = st.actionItems(s.id).length;
-      var overdueList = st.overdueSites((function () { var m = {}; m[s.id] = true; return m; })());
+      var status = st.siteVisitStatus(s);
       var sysChips = systems.map(function (y) {
         return '<span class="chip chip-type">' + u.esc(y.name) + '</span>';
       }).join(' ') || '<span class="td-sub">none</span>';
+      var periodCell = !status.scheduled
+        ? '<span class="td-sub">no schedule</span>'
+        : (status.completed
+          ? '<span class="chip chip-done" title="Visited during the current period (' + u.esc(status.label) + ')">✓ Visited · ' + u.esc(status.label) + '</span>'
+          : '<span class="chip chip-due" title="No visit yet this period — ' + status.daysLeft + ' days left">○ Due · ' + u.esc(status.label) + '</span>');
       html += '<tr class="rowlink" data-href="#/site/' + s.id + '">' +
         '<td><strong>' + u.esc(s.name) + '</strong>' + (s.contact ? '<div class="td-sub">' + u.esc(s.contact) + '</div>' : '') + '</td>' +
         '<td class="td-sub">' + u.esc(st.addressString(s) || '—') + '</td>' +
         (showRepCol ? '<td class="td-sub">' + u.esc(AA.app.repName(s.repId) || '—') + '</td>' : '') +
         '<td><div class="pill-row">' + sysChips + '</div></td>' +
-        '<td class="td-sub">' + (visits.length ? u.fmtDate(visits[0].date) : 'never') +
-        (overdueList.length ? ' <span class="chip chip-low">▼ Overdue</span>' : '') + '</td>' +
+        '<td class="td-sub">' + (status.lastVisit ? u.fmtDate(status.lastVisit) : 'never') + '</td>' +
+        '<td>' + periodCell + '</td>' +
         '<td class="num">' + (flags ? '<strong style="color:var(--critical)">' + flags + '</strong>' : '0') + '</td></tr>';
     });
     html += '</tbody></table></div></div>';

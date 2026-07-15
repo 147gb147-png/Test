@@ -35,6 +35,15 @@ AQUATRACK_DATA=/srv/aqua node server.js   # custom data directory
 > For team use across a shop, run it on any always-on machine (office PC,
 > NAS, $5 VPS) and put it behind HTTPS (e.g. Caddy/nginx) if it leaves your LAN.
 
+### Hosting it online
+
+**See [docs/DEPLOY.md](docs/DEPLOY.md)** for step-by-step guides — Railway
+(easiest), Fly.io, Render, or any VPS with Docker + automatic HTTPS via
+Caddy. The repo ships ready-made `Dockerfile`, `docker-compose.yml`,
+`fly.toml` and `render.yaml`; every option keeps `data/` on a persistent
+volume so nothing is ever lost on redeploys, and there's a `/api/health`
+endpoint for platform health checks.
+
 ### Solo mode (no server)
 
 Opening `index.html` directly (or via any static file server) still works —
@@ -66,7 +75,7 @@ visit is lost; clients re-pull changes every 15 s and after every save.
 ## The data model (drill-down)
 
 ```
-Site (customer, address, map pin, assigned rep, service interval)
+Site (customer, address, map pin, assigned rep, visit frequency)
  └─ System            — Boiler, Cooling Tower, Closed Loop… PLUS any system
      │                  type you create yourself (chiller, RO, softener, …)
      └─ Sample Point  — e.g. Makeup, Feedwater, Boiler Water, Condensate,
@@ -98,10 +107,16 @@ Site (customer, address, map pin, assigned rep, service interval)
 - **KPIs**: % of results in range (30d) on the dashboard, per-rep KPIs in Admin.
 - **Action items**: every test whose latest reading is out of range, with
   **⟲ Chronic** escalation when it's been out 3+ consecutive readings.
-- **Overdue visits**: set a service interval per site; sites past due are
-  listed on the dashboard and tinted orange on the map.
+- **Visit schedules & completion tracking**: give each site a visit frequency
+  (weekly / monthly / quarterly). Every dashboard shows **"15/25 visited this
+  period"** with a progress bar; completed sites show a green **✓ Visited**
+  chip, un-visited ones an orange **○ Due** chip (with days left), and the
+  count resets automatically at the start of each calendar period (Monday /
+  1st of the month / quarter). Admins see per-rep progress and can set
+  frequencies in bulk on the assignments table.
 - **Interactive map**: geocoded sites (OpenStreetMap Nominatim or manual
-  coordinates); markers red for out-of-range results, orange for overdue.
+  coordinates); markers red for out-of-range results, orange for due-this-
+  period, blue for visited/on-program.
 
 **Customization**
 - **Create your own system types** (Settings → System templates): chillers,
@@ -123,6 +138,9 @@ Site (customer, address, map pin, assigned rep, service interval)
 ```
 server.js             zero-dependency Node server: static files, auth,
                       versioned shared store, record-level merge, rep scoping
+Dockerfile,           ready-made deployment configs — see docs/DEPLOY.md
+docker-compose.yml,
+fly.toml, render.yaml
 index.html            app shell
 css/styles.css        design system (palette documented in docs/DESIGN.md)
 js/api.js             server API client + auth/env/UI state

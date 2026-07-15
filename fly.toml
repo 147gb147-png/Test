@@ -1,0 +1,33 @@
+# Fly.io config for AquaTrack — see docs/DEPLOY.md
+#
+#   fly launch --copy-config --no-deploy   (accept the app name prompt)
+#   fly volumes create aquatrack_data --size 1
+#   fly deploy
+app = "aquatrack"        # change to your unique app name
+primary_region = "ord"    # pick the region closest to your team
+
+[build]
+
+[env]
+  PORT = "8080"
+
+[[mounts]]
+  source = "aquatrack_data"
+  destination = "/app/data"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [[http_service.checks]]
+    interval = "30s"
+    timeout = "5s"
+    method = "GET"
+    path = "/api/health"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"

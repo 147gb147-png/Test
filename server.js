@@ -196,12 +196,34 @@ function validDocShape(doc) {
   return typeof doc.templates === 'object' && typeof doc.settings === 'object';
 }
 
+/* ---------------------------------------------- login brute-force guard */
+const loginFails = new Map(); // key -> {count, until}
+const LOGIN_MAX_FAILS = 10, LOGIN_LOCK_MS = 10 * 60 * 1000;
+
+function loginKey(req, username) {
+  return (req.socket.remoteAddress || '?') + '|' + String(username || '').toLowerCase();
+}
+function loginLocked(key) {
+  const rec = loginFails.get(key);
+  return rec && rec.count >= LOGIN_MAX_FAILS && Date.now() < rec.until;
+}
+function loginFailed(key) {
+  const rec = loginFails.get(key) || { count: 0, until: 0 };
+  rec.count++;
+  rec.until = Date.now() + LOGIN_LOCK_MS;
+  loginFails.set(key, rec);
+}
+
 /* ------------------------------------------------------------ API routes */
 async function handleAPI(req, res, url) {
   const method = req.method;
   const p = url.pathname;
 
   /* ---- unauthenticated ---- */
+  if (p === '/api/health' && method === 'GET') {
+    return sendJSON(res, 200, { ok: true, users: users.length > 0 });
+  }
+
   if (p === '/api/login-list' && method === 'GET') {
     return sendJSON(res, 200, {
       setup: users.length === 0,
@@ -230,10 +252,16 @@ async function handleAPI(req, res, url) {
 
   if (p === '/api/login' && method === 'POST') {
     const b = await readBody(req);
+    const key = loginKey(req, b.username);
+    if (loginLocked(key)) {
+      return sendJSON(res, 429, { error: 'Too many failed attempts — try again in a few minutes.' });
+    }
     const u = users.find(x => x.username === String(b.username || '').trim().toLowerCase());
     if (!u || u.active === false || hashPassword(b.password || '', u.salt) !== u.hash) {
+      loginFailed(key);
       return sendJSON(res, 401, { error: 'Wrong username or password.' });
     }
+    loginFails.delete(key);
     const token = crypto.randomBytes(24).toString('hex');
     sessions[token] = { userId: u.id, ts: Date.now() };
     writeJSON('sessions.json', sessions);
@@ -386,4 +414,12 @@ server.listen(PORT, () => {
   console.log('AquaTrack server running at http://localhost:' + PORT);
   console.log('Data directory: ' + DATA_DIR);
   if (!users.length) console.log('No users yet — open the app in a browser to create the first admin account.');
+});
+
+/* graceful shutdown for containers / process managers */
+['SIGTERM', 'SIGINT'].forEach(sig => {
+  process.on(sig, () => {
+    server.close(() => process.exit(0));
+    setTimeout(() => process.exit(0), 3000).unref();
+  });
 });

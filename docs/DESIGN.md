@@ -57,7 +57,14 @@ to swap in brand colors (mirrored as CSS custom properties in
 | Above max / below min | `▲ High` / `▼ Low` (critical) | entry, reports, tables, charts (as triangles) |
 | Chronic (3+ consecutive out) | `⟲ Chronic` (critical, filled) | action items, history header |
 | Low product stock | `▼ Low stock` (critical) | inventory, action items |
-| Visit overdue | `▼ Overdue` chip · orange `#ec835a` marker | sites list, site page, map |
+| Visited this period | `✓ Visited · July` (good) | sites list, site page, admin |
+| Due this period | `○ Due · July` (serious `#ec835a` wash, dark-orange text) · orange marker | sites list, dashboard, admin, map |
+
+Visit progress ("15/25") renders as a **meter**: accent-blue fill on a
+lighter step of the same blue ramp (`#cde2fb`), per the stat-tile/meter spec —
+progress is neutral information, so the fill stays accent, not a status color.
+Period completion is computed against calendar periods (ISO week / month /
+quarter), so counts reset automatically at each period start.
 
 Map legend pairs each marker color with a text label; popups repeat the
 status in words.

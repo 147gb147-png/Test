@@ -1,0 +1,18 @@
+# Render.com blueprint for AquaTrack — see docs/DEPLOY.md
+# Note: the persistent disk requires a paid instance type (Starter);
+# free web services have ephemeral disks and would lose data on redeploy.
+services:
+  - type: web
+    name: aquatrack
+    runtime: node
+    plan: starter
+    buildCommand: ""
+    startCommand: node server.js
+    healthCheckPath: /api/health
+    envVars:
+      - key: PORT
+        value: 8080
+    disk:
+      name: aquatrack-data
+      mountPath: /opt/render/project/src/data
+      sizeGB: 1

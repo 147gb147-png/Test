@@ -19,8 +19,8 @@ AA.views.map = function (root) {
   html += AA.views._repFilterRow();
 
   html += '<div class="map-legend no-print">' +
-    '<span class="legend-item"><span class="legend-dot" style="background:#2a78d6"></span> On program</span>' +
-    '<span class="legend-item"><span class="legend-dot" style="background:#ec835a"></span> Visit overdue</span>' +
+    '<span class="legend-item"><span class="legend-dot" style="background:#2a78d6"></span> Visited this period / no schedule</span>' +
+    '<span class="legend-item"><span class="legend-dot" style="background:#ec835a"></span> Due this period</span>' +
     '<span class="legend-item"><span class="legend-dot" style="background:#d03b3b"></span> Out-of-range results</span>' +
     '</div>';
 
@@ -50,10 +50,10 @@ AA.views.map = function (root) {
   var bounds = [];
   located.forEach(function (s) {
     var flags = st.actionItems(s.id).length;
-    var only = {}; only[s.id] = true;
-    var overdue = st.overdueSites(only).length > 0;
+    var status = st.siteVisitStatus(s);
+    var due = status.scheduled && !status.completed;
     var visits = st.visitsOf(s.id);
-    var color = flags ? '#d03b3b' : (overdue ? '#ec835a' : '#2a78d6');
+    var color = flags ? '#d03b3b' : (due ? '#ec835a' : '#2a78d6');
     var marker = L.circleMarker([s.lat, s.lng], {
       radius: 9,
       color: '#fcfcfb',
@@ -77,9 +77,12 @@ AA.views.map = function (root) {
       fl.textContent = '▲ ' + flags + ' result' + (flags > 1 ? 's' : '') + ' out of range';
       pop.appendChild(fl);
     }
-    if (overdue) {
-      var od = document.createElement('div'); od.className = 'mp-flags';
-      od.textContent = '📅 Visit overdue';
+    if (status.scheduled) {
+      var od = document.createElement('div');
+      od.className = due ? 'mp-flags' : 'mp-meta';
+      od.textContent = due
+        ? '○ Due this period (' + status.label + ') — ' + status.daysLeft + ' days left'
+        : '✓ Visited this period (' + status.label + ')';
       pop.appendChild(od);
     }
     var lnk = document.createElement('a');

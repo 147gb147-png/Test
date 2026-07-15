@@ -13,14 +13,17 @@ AA.views.site = function (root, params) {
   var visits = st.visitsOf(site.id);
   var actions = st.actionItems(site.id);
   var addr = st.addressString(site);
-  var only = {}; only[site.id] = true;
-  var overdue = st.overdueSites(only);
+  var vstatus = st.siteVisitStatus(site);
   var repName = AA.env.server ? AA.app.repName(site.repId) : null;
+  var statusChip = !vstatus.scheduled ? '' :
+    (vstatus.completed
+      ? ' <span class="chip chip-done">✓ Visited · ' + u.esc(vstatus.label) + '</span>'
+      : ' <span class="chip chip-due">○ Due · ' + u.esc(vstatus.label) + '</span>');
 
   var html =
     '<div class="page-head"><div class="grow">' +
     '<div class="crumbs"><a href="#/sites">Sites</a> / ' + u.esc(site.name) + '</div>' +
-    '<h1>' + u.esc(site.name) + (overdue.length ? ' <span class="chip chip-low">▼ Visit overdue</span>' : '') + '</h1>' +
+    '<h1>' + u.esc(site.name) + statusChip + '</h1>' +
     (addr ? '<p class="page-sub">📍 ' + u.esc(addr) + (site.lat != null ? ' · <a href="#/map">on map</a>' : '') +
       (repName ? ' · rep: <strong>' + u.esc(repName) + '</strong>' : '') + '</p>' : '') +
     '</div><div class="actions">' +
@@ -34,7 +37,11 @@ AA.views.site = function (root, params) {
     '<dt>Contact</dt><dd>' + (u.esc(site.contact) || '—') + '</dd>' +
     '<dt>Phone</dt><dd>' + (u.esc(site.phone) || '—') + '</dd>' +
     '<dt>Email</dt><dd>' + (site.email ? '<a href="mailto:' + u.esc(site.email) + '">' + u.esc(site.email) + '</a>' : '—') + '</dd>' +
-    '<dt>Service interval</dt><dd>' + (site.serviceIntervalDays ? 'every ' + site.serviceIntervalDays + ' days' : '<span class="td-sub">no schedule set</span>') + '</dd>' +
+    '<dt>Visit schedule</dt><dd>' + (vstatus.scheduled
+      ? st.freqLabel(vstatus.freq) + ' — ' + (vstatus.completed
+        ? '<span style="color:var(--good-text);font-weight:600">✓ visited this period</span>'
+        : '<span style="color:var(--critical);font-weight:600">○ due</span> (' + vstatus.daysLeft + ' days left in ' + u.esc(vstatus.label) + ')')
+      : '<span class="td-sub">no schedule set — pick a visit frequency when editing the site</span>') + '</dd>' +
     '<dt>Coordinates</dt><dd>' + (site.lat != null && site.lng != null ? site.lat.toFixed(4) + ', ' + site.lng.toFixed(4) : '<span class="td-sub">not set — edit site to geocode</span>') + '</dd>' +
     '</dl></div>' +
     '<div class="card"><h3>Site notes</h3><p class="td-sub" style="white-space:pre-wrap">' + (u.esc(site.notes) || 'No notes.') + '</p></div></div>';

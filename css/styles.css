@@ -112,8 +112,21 @@ h3 { font-size: 1rem; }
 }
 .tile .t-label { font-size: .8rem; color: var(--ink-2); }
 .tile .t-value { font-size: 1.7rem; font-weight: 600; margin-top: 2px; }
+.tile .t-value .t-of { font-size: 1.05rem; color: var(--muted); font-weight: 500; }
 .tile .t-note { font-size: .76rem; color: var(--muted); margin-top: 2px; }
 .tile.alert .t-value { color: var(--critical); }
+
+/* progress meter: accent fill on a lighter step of the same ramp */
+.meter {
+  height: 8px;
+  border-radius: 999px;
+  background: #cde2fb;
+  overflow: hidden;
+  margin-top: 6px;
+}
+.meter-fill { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
+.meter-inline { display: inline-block; width: 90px; vertical-align: middle; margin: 0 0 0 8px; }
+.progress-inline { display: inline-flex; align-items: center; font-size: .88rem; color: var(--ink-2); gap: 4px; }
 
 /* ---------------------------------------------------------------- tables */
 .table-wrap { overflow-x: auto; }
@@ -158,6 +171,8 @@ table.data tr.rowlink:hover { background: var(--accent-wash); }
 .chip-none { background: rgba(11, 11, 11, 0.05); color: var(--muted); }
 .chip-type { background: var(--accent-wash); color: var(--accent-deep); }
 .chip-chronic { background: rgba(208, 59, 59, 0.9); color: #fff; }
+.chip-done { background: rgba(12, 163, 12, 0.10); color: var(--good-text); }
+.chip-due { background: rgba(236, 131, 90, 0.16); color: #9c4221; }
 
 /* --------------------------------------------------------------- buttons */
 .btn {
