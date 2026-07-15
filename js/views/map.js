@@ -4,29 +4,38 @@ AA.views = AA.views || {};
 
 AA.views.map = function (root) {
   var u = AA.util, st = AA.store;
-  var sites = st.data.sites;
+  var sites = st.scopedSites();
   var located = sites.filter(function (s) { return s.lat != null && s.lng != null; });
   var missing = sites.filter(function (s) { return (s.lat == null || s.lng == null) && st.addressString(s); });
 
   var html =
     '<div class="page-head"><div class="grow"><h1>Site Map</h1>' +
-    '<p class="page-sub">' + located.length + ' of ' + sites.length + ' sites located · red markers have out-of-range results</p></div>' +
+    '<p class="page-sub">' + located.length + ' of ' + sites.length + ' sites located</p></div>' +
     '<div class="actions">' +
     (missing.length ? '<button class="btn btn-ghost" id="geo-all">📍 Geocode ' + missing.length + ' missing address' + (missing.length > 1 ? 'es' : '') + '</button>' : '') +
     '<button class="btn btn-primary" id="map-add-site">+ Add Site</button>' +
     '</div></div>';
+
+  html += AA.views._repFilterRow();
+
+  html += '<div class="map-legend no-print">' +
+    '<span class="legend-item"><span class="legend-dot" style="background:#2a78d6"></span> On program</span>' +
+    '<span class="legend-item"><span class="legend-dot" style="background:#ec835a"></span> Visit overdue</span>' +
+    '<span class="legend-item"><span class="legend-dot" style="background:#d03b3b"></span> Out-of-range results</span>' +
+    '</div>';
 
   if (typeof L === 'undefined') {
     html += '<div class="card"><div class="empty">The map library could not load (no internet connection?).<br>Site coordinates are still saved — the map will appear when you’re back online.</div></div>';
     root.innerHTML = html;
     var addBtnOffline = document.getElementById('map-add-site');
     if (addBtnOffline) addBtnOffline.addEventListener('click', function () { AA.forms.site(null, function () { AA.views.map(root); }); });
+    AA.views._wireRepFilter(root, function () { AA.views.map(root); });
     return;
   }
 
   html += '<div class="card" style="padding:8px"><div id="map-canvas"></div></div>';
   if (!sites.length) {
-    html += '<div class="card"><div class="empty">No sites yet — add one and its address to see it here.</div></div>';
+    html += '<div class="card"><div class="empty">No sites in this view — add one and its address to see it here.</div></div>';
   } else if (!located.length) {
     html += '<div class="card"><div class="empty">No sites have coordinates yet. Use “Geocode missing addresses” above, or set coordinates when editing a site.</div></div>';
   }
@@ -41,12 +50,15 @@ AA.views.map = function (root) {
   var bounds = [];
   located.forEach(function (s) {
     var flags = st.actionItems(s.id).length;
+    var only = {}; only[s.id] = true;
+    var overdue = st.overdueSites(only).length > 0;
     var visits = st.visitsOf(s.id);
+    var color = flags ? '#d03b3b' : (overdue ? '#ec835a' : '#2a78d6');
     var marker = L.circleMarker([s.lat, s.lng], {
       radius: 9,
       color: '#fcfcfb',
       weight: 2,
-      fillColor: flags ? '#d03b3b' : '#2a78d6',
+      fillColor: color,
       fillOpacity: 0.9
     }).addTo(map);
 
@@ -57,11 +69,18 @@ AA.views.map = function (root) {
     var ad = document.createElement('div'); ad.className = 'mp-addr'; ad.textContent = st.addressString(s);
     var meta = document.createElement('div'); meta.className = 'mp-meta';
     meta.textContent = (visits.length ? 'Last visit ' + u.fmtDate(visits[0].date) : 'No visits yet');
+    var repName = AA.env.server ? AA.app.repName(s.repId) : null;
+    if (repName) meta.textContent += ' · rep: ' + repName;
     pop.appendChild(nm); pop.appendChild(ad); pop.appendChild(meta);
     if (flags) {
       var fl = document.createElement('div'); fl.className = 'mp-flags';
       fl.textContent = '▲ ' + flags + ' result' + (flags > 1 ? 's' : '') + ' out of range';
       pop.appendChild(fl);
+    }
+    if (overdue) {
+      var od = document.createElement('div'); od.className = 'mp-flags';
+      od.textContent = '📅 Visit overdue';
+      pop.appendChild(od);
     }
     var lnk = document.createElement('a');
     lnk.href = '#/site/' + s.id;
@@ -76,10 +95,11 @@ AA.views.map = function (root) {
   else if (bounds.length === 1) map.setView(bounds[0], 13);
   else map.setView([39.5, -85], 5);
 
-  var addBtn = document.getElementById('map-add-site');
-  addBtn.addEventListener('click', function () {
+  document.getElementById('map-add-site').addEventListener('click', function () {
     AA.forms.site(null, function () { AA.views.map(root); });
   });
+
+  AA.views._wireRepFilter(root, function () { AA.views.map(root); });
 
   var geoBtn = document.getElementById('geo-all');
   if (geoBtn) {

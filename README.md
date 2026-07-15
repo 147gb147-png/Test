@@ -1,111 +1,153 @@
 # AquaTrack 💧
 
-A self-contained web app for **water treatment field service data** — inspired by
-AquaAnalytics-style service reporting platforms. Reps record test results during
-site visits; the app flags out-of-range results, trends every test over time,
-generates printable service reports, and shows all customer sites on an
-interactive map.
+A multi-user web app for **water treatment field service data** — inspired by
+AquaAnalytics-style service reporting platforms. Reps record test results
+during site visits at the sites assigned to them; the app flags out-of-range
+results as they type, escalates chronic problems, tracks product inventory,
+trends every test over time, generates printable service reports, and shows
+the whole book of business on an interactive map. Admins manage reps, assign
+sites, and can drill into any rep's accounts and reports.
 
-## Quick start
+## Quick start (multi-user / team mode)
 
-No build step, no server, no dependencies to install.
+Requires only Node.js ≥ 16 — **no npm install, zero dependencies**.
 
 ```bash
-# option 1 — just open it
-open index.html            # macOS
-xdg-open index.html        # Linux
-
-# option 2 — serve it (recommended)
-python3 -m http.server 8000
-# then browse to http://localhost:8000
+node server.js
+# → AquaTrack server running at http://localhost:8080
 ```
 
-> The map (Leaflet/OpenStreetMap) and address geocoding need an internet
-> connection; everything else works fully offline.
+Open it in a browser: the first visit walks you through creating the **admin
+account**. Then, under **Admin**:
+1. **+ Add user** — create an account for each rep,
+2. assign sites to reps in **Site assignments** (or on each site's edit form).
 
-First time in, click **Load demo data** on the dashboard to explore with three
-example sites, or go straight to **Sites → Add Site**.
+Everyone signs in from their own browser/tablet/phone against the same server
+and works on the same shared data. Sessions survive restarts; passwords are
+scrypt-hashed; all data lives in `./data/` (gitignored — backed up with the
+built-in JSON export or by copying the folder).
+
+```bash
+PORT=3000 node server.js            # custom port
+AQUATRACK_DATA=/srv/aqua node server.js   # custom data directory
+```
+
+> For team use across a shop, run it on any always-on machine (office PC,
+> NAS, $5 VPS) and put it behind HTTPS (e.g. Caddy/nginx) if it leaves your LAN.
+
+### Solo mode (no server)
+
+Opening `index.html` directly (or via any static file server) still works —
+the app detects there's no AquaTrack server and falls back to single-user
+**solo mode** with browser localStorage, exactly like v1. Great for trying it
+out; the Settings → Data tab explains the difference.
+
+First time in, click **Load demo data** on the dashboard to explore three
+example sites with 14 weeks of history, or go straight to **Sites → Add Site**.
+
+## Who sees what
+
+| | Rep | Admin |
+|---|---|---|
+| Sites | only sites assigned to them (new sites they create are auto-assigned to them) | all sites, filterable by rep |
+| Visits / reports | record & edit at their sites; visits filed under their name automatically | everything, plus per-rep drill-down (`Admin → rep`) |
+| Customization (tests, templates, products) | yes — shared catalog | yes |
+| Users, site assignment, backup/restore/reset | — | yes |
+
+Scoping is enforced **server-side**: a rep's save that touches another rep's
+site is rejected (HTTP 403), not just hidden in the UI.
+
+### Concurrent editing
+
+Every save is versioned. If two users save at once, the server merges
+record-by-record (last write wins per record, deletions tombstoned) so nobody's
+visit is lost; clients re-pull changes every 15 s and after every save.
 
 ## The data model (drill-down)
 
 ```
-Site (customer, address, map pin)
- └─ System            — Boiler and/or Cooling Tower (extensible via templates)
+Site (customer, address, map pin, assigned rep, service interval)
+ └─ System            — Boiler, Cooling Tower, Closed Loop… PLUS any system
+     │                  type you create yourself (chiller, RO, softener, …)
      └─ Sample Point  — e.g. Makeup, Feedwater, Boiler Water, Condensate,
-        │               Recirculating Water … (add your own)
-        └─ Test       — e.g. pH, Conductivity, Sulphite, Phosphate, P/M/OH
-            │           Alkalinity, Hardness, Chloride, Iron, Free Chlorine,
-            │           ORP, Cycles, Dip Slides … (add your own)
-            └─ Data   — one reading per visit, with optional comment,
-                        flagged against the expected range, trended over time
+        │               Recirculating Water, Loop Water … (add your own)
+        └─ Test       — pH, Conductivity, Sulphite, Phosphate, P/M/OH Alk,
+            │           Hardness, Chloride, Iron, Free Chlorine, ORP, Cycles,
+            │           Nitrite, Glycol, Dip Slides … (add your own)
+            └─ Data   — one reading per visit, optional comment, flagged
+                        against the expected range, trended over time
 ```
 
 ## Features
 
-- **Visit entry built for the field** — one screen per visit covering every
-  system and sample point at the site; results are flagged **live** as you type
-  (▲ High / ▼ Low / ✓ OK); every reading can carry an optional comment that
-  appears on the customer report.
-- **Expected ranges at three levels** — a default range per test, a range per
-  sample point in the system *templates* (what new systems start with), and a
-  per-sample-point override on any existing system. History is always evaluated
-  against the current range.
-- **Trends** — every test at every sample point gets a chart with the expected
-  range shown as a band, out-of-range points marked, and a hover readout with
-  date, value, status and the rep's comment. A full reading table sits below
-  every chart.
-- **Service reports** — each visit renders as a printable report (Print/PDF
-  button) grouped by system and sample point, including flags, comments and
-  your visit notes/recommendations.
-- **Action items** — the dashboard and each site page list every test whose
-  *latest* reading is out of range across your whole book of business.
-- **Interactive map** — every site with an address can be geocoded (free
-  OpenStreetMap Nominatim, ~1 request/second) or given manual coordinates.
-  Markers turn red when a site has out-of-range results.
-- **Products** — keep your product catalog in Settings and assign products with
-  a feed target to each system; they appear on the system page.
-- **Fully customizable** — Settings lets you:
-  - add/edit/delete **tests** (name, unit, decimals, default range),
-  - reshape the **Boiler / Cooling Tower templates** (sample points, tests,
-    template-level expected ranges),
-  - manage **products**,
-  - set company name & default rep (report header / visit prefill).
-- **Backup / restore** — one-click JSON export and import (also the way to move
-  data between devices or share it).
+**Field workflow**
+- One visit-entry screen per site covering every system and sample point;
+  results flagged **live** as the rep types (▲ High / ▼ Low / ✓ OK); optional
+  comment per reading that lands on the customer report.
+- Product **stock levels** recordable per visit; low-stock alerts when a level
+  hits the reorder threshold you set on the assignment.
+- Printable **service reports** (Print → PDF) grouped by system/sample point
+  with flags, comments, product stock, notes & recommendations, and 📈 links
+  from every row to that test's trend.
+
+**Analysis & alerts (AA-style)**
+- **Trends everywhere**: full-size chart per test (expected-range band,
+  out-of-range triangles, crosshair readout) + a **Trends grid** per system —
+  every test as small multiples. Both scoped by a time-range filter
+  (30/90 days, 6/12 months, all, custom From–To). **CSV export** per test.
+- **KPIs**: % of results in range (30d) on the dashboard, per-rep KPIs in Admin.
+- **Action items**: every test whose latest reading is out of range, with
+  **⟲ Chronic** escalation when it's been out 3+ consecutive readings.
+- **Overdue visits**: set a service interval per site; sites past due are
+  listed on the dashboard and tinted orange on the map.
+- **Interactive map**: geocoded sites (OpenStreetMap Nominatim or manual
+  coordinates); markers red for out-of-range results, orange for overdue.
+
+**Customization**
+- **Create your own system types** (Settings → System templates): chillers,
+  RO units, softeners, waste streams — name it, add sample points, pick tests
+  and expected ranges; it immediately appears in every site's "Add system" list.
+- Expected ranges at three levels: test default → template → per-sample-point
+  override. History is always evaluated against the current range.
+- Test catalog, templates, and product catalog all fully editable.
 
 ## Where the data lives
 
-All data is stored in the browser's `localStorage` under the key
-`aquatrack_v1` — private to the machine/browser/profile you use. Export a JSON
-backup regularly from **Settings → Data & general**.
-
-This is deliberately the simplest possible deployment (a folder of static
-files). If you later want multi-user sync, the storage layer is isolated in
-`js/store.js` — swapping `localStorage` for a small REST API is the only change
-needed.
+- **Server mode**: `data/store.json` (shared workspace), `data/users.json`
+  (accounts), `data/sessions.json` (logins) — all in the server's data
+  directory, never committed. JSON export/import in Settings → Data.
+- **Solo mode**: browser localStorage (`aquatrack_v1`), same export/import.
 
 ## Project layout
 
 ```
-index.html            app shell + script/style includes
+server.js             zero-dependency Node server: static files, auth,
+                      versioned shared store, record-level merge, rep scoping
+index.html            app shell
 css/styles.css        design system (palette documented in docs/DESIGN.md)
-js/util.js            DOM/format helpers, toasts, modals
-js/defaults.js        default test catalog, system templates, products, demo data
-js/store.js           data layer: persistence, CRUD, ranges, flags, histories
+js/api.js             server API client + auth/env/UI state
+js/util.js            helpers, toasts, modals, time-range filters
+js/defaults.js        default test catalog, templates, products, demo data
+js/store.js           data layer: sync (server/solo), CRUD, ranges, flags,
+                      chronic streaks, overdue, inventory, KPIs
 js/geocode.js         OpenStreetMap Nominatim address lookup
-js/chart.js           SVG trend chart (range band, flags, crosshair tooltip)
-js/views/core.js      dashboard, sites list, site form
-js/views/site.js      site detail, system detail, test history
-js/views/visit.js     visit entry form + printable service report
-js/views/map.js       Leaflet site map
-js/views/settings.js  tests / templates / products / data management
-js/app.js             hash router & bootstrap
+js/chart.js           SVG trend chart (full + compact small-multiple modes)
+js/views/login.js     sign-in & first-run admin setup
+js/views/core.js      dashboard, sites list, site form, rep filter
+js/views/site.js      site detail, system detail, test history + CSV
+js/views/visit.js     visit entry (with product levels) + service report
+js/views/trends.js    per-system trends grid (small multiples)
+js/views/map.js       Leaflet site map with status markers
+js/views/admin.js     rep overview, per-rep drill-down, user management
+js/views/settings.js  tests / system types & templates / products / data
+js/app.js             boot, auth flow, router, background sync
 ```
 
 ## Default control limits
 
 The bundled defaults are typical industrial guidelines (e.g. boiler water pH
 10.5–12.0, sulphite 20–60 ppm, phosphate 30–60 ppm; cooling water pH 7.5–9.0,
-free chlorine 0.5–1.0 ppm, dip slides ≤ 10⁴ CFU/mL). **They are starting points,
-not a treatment program** — always set limits per site/system according to your
-program design, boiler pressure, metallurgy and local regulations.
+free chlorine 0.5–1.0 ppm, dip slides ≤ 10⁴ CFU/mL; closed loop nitrite
+500–1000 ppm). **They are starting points, not a treatment program** — always
+set limits per site/system according to your program design, boiler pressure,
+metallurgy and local regulations.

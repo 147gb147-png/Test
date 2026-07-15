@@ -8,27 +8,33 @@ AA.views.site = function (root, params) {
   var site = st.getSite(params[0]);
   if (!site) { root.innerHTML = '<div class="card"><div class="empty">Site not found. <a href="#/sites">Back to sites</a></div></div>'; return; }
 
+  var canEdit = st.canEditSite(site);
   var systems = st.systemsOf(site.id);
   var visits = st.visitsOf(site.id);
   var actions = st.actionItems(site.id);
   var addr = st.addressString(site);
+  var only = {}; only[site.id] = true;
+  var overdue = st.overdueSites(only);
+  var repName = AA.env.server ? AA.app.repName(site.repId) : null;
 
   var html =
     '<div class="page-head"><div class="grow">' +
     '<div class="crumbs"><a href="#/sites">Sites</a> / ' + u.esc(site.name) + '</div>' +
-    '<h1>' + u.esc(site.name) + '</h1>' +
-    (addr ? '<p class="page-sub">📍 ' + u.esc(addr) + (site.lat != null ? ' · <a href="#/map">on map</a>' : '') + '</p>' : '') +
+    '<h1>' + u.esc(site.name) + (overdue.length ? ' <span class="chip chip-low">▼ Visit overdue</span>' : '') + '</h1>' +
+    (addr ? '<p class="page-sub">📍 ' + u.esc(addr) + (site.lat != null ? ' · <a href="#/map">on map</a>' : '') +
+      (repName ? ' · rep: <strong>' + u.esc(repName) + '</strong>' : '') + '</p>' : '') +
     '</div><div class="actions">' +
-    '<a class="btn btn-primary" href="#/visit/new?site=' + site.id + '">+ New Visit</a>' +
-    '<button class="btn btn-ghost" id="site-edit">Edit site</button>' +
-    '<button class="btn btn-danger" id="site-del">Delete</button>' +
+    (canEdit ? '<a class="btn btn-primary" href="#/visit/new?site=' + site.id + '">+ New Visit</a>' : '') +
+    (canEdit ? '<button class="btn btn-ghost" id="site-edit">Edit site</button>' : '') +
+    (canEdit ? '<button class="btn btn-danger" id="site-del">Delete</button>' : '') +
     '</div></div>';
 
   /* contact / notes */
-  html += '<div class="grid-2"><div class="card"><h3>Contact</h3><dl class="kv">' +
+  html += '<div class="grid-2"><div class="card"><h3>Contact & schedule</h3><dl class="kv">' +
     '<dt>Contact</dt><dd>' + (u.esc(site.contact) || '—') + '</dd>' +
     '<dt>Phone</dt><dd>' + (u.esc(site.phone) || '—') + '</dd>' +
     '<dt>Email</dt><dd>' + (site.email ? '<a href="mailto:' + u.esc(site.email) + '">' + u.esc(site.email) + '</a>' : '—') + '</dd>' +
+    '<dt>Service interval</dt><dd>' + (site.serviceIntervalDays ? 'every ' + site.serviceIntervalDays + ' days' : '<span class="td-sub">no schedule set</span>') + '</dd>' +
     '<dt>Coordinates</dt><dd>' + (site.lat != null && site.lng != null ? site.lat.toFixed(4) + ', ' + site.lng.toFixed(4) : '<span class="td-sub">not set — edit site to geocode</span>') + '</dd>' +
     '</dl></div>' +
     '<div class="card"><h3>Site notes</h3><p class="td-sub" style="white-space:pre-wrap">' + (u.esc(site.notes) || 'No notes.') + '</p></div></div>';
@@ -43,7 +49,7 @@ AA.views.site = function (root, params) {
         '<td>' + u.esc(it.test.name) + '</td>' +
         '<td class="num"><strong>' + u.fmtNum(it.value, it.test.decimals) + '</strong> <span class="td-sub">' + u.esc(it.test.unit) + '</span></td>' +
         '<td class="td-sub">' + u.esc(u.rangeText(it.range)) + '</td>' +
-        '<td>' + AA.ui.flagChip(it.flag) + '</td>' +
+        '<td>' + AA.ui.flagChip(it.flag) + (it.streak >= 3 ? ' ' + AA.ui.chronicChip() : '') + '</td>' +
         '<td class="td-sub">' + u.fmtDate(it.date) + '</td></tr>';
     });
     html += '</tbody></table></div></div>';
@@ -51,9 +57,9 @@ AA.views.site = function (root, params) {
 
   /* systems */
   html += '<div class="card"><div class="page-head" style="margin-bottom:8px"><div class="grow"><h2 style="margin:0">Systems</h2></div>' +
-    '<div class="actions"><button class="btn btn-ghost btn-sm" id="add-system">+ Add system</button></div></div>';
+    (canEdit ? '<div class="actions"><button class="btn btn-ghost btn-sm" id="add-system">+ Add system</button></div>' : '') + '</div>';
   if (!systems.length) {
-    html += '<div class="empty">No systems yet — add a Boiler or Cooling Tower system.</div>';
+    html += '<div class="empty">No systems yet — add a Boiler, Cooling Tower, or any custom system type.</div>';
   } else {
     html += '<div class="table-wrap"><table class="data"><thead><tr>' +
       '<th>System</th><th>Type</th><th class="num">Sample points</th><th>Products</th><th></th></tr></thead><tbody>';
@@ -69,7 +75,7 @@ AA.views.site = function (root, params) {
         '<td><span class="chip chip-type">' + u.esc(tpl ? tpl.label : y.type) + '</span></td>' +
         '<td class="num">' + pts.length + '</td>' +
         '<td class="td-sub">' + (prods || '—') + '</td>' +
-        '<td class="td-sub">open →</td></tr>';
+        '<td class="td-sub"><a href="#/trends/' + y.id + '">📈 trends</a> · open →</td></tr>';
     });
     html += '</tbody></table></div>';
   }
@@ -96,6 +102,7 @@ AA.views.site = function (root, params) {
 
   root.innerHTML = html;
   AA.views._wireRowLinks(root);
+  if (!canEdit) return;
 
   document.getElementById('site-edit').addEventListener('click', function () {
     AA.forms.site(site, function () { AA.views.site(root, params); });
@@ -117,7 +124,7 @@ AA.views.site = function (root, params) {
       bodyHTML:
         '<label class="f">System type<select name="type">' + opts + '</select></label>' +
         '<label class="f">Name <span class="f-hint">(e.g. "Boiler #1 — East Plant")</span><input name="name" placeholder="defaults to the type name"></label>' +
-        '<p class="f-hint">Sample points and tests are copied from the template for this type (editable in Settings → Templates). You can adjust them per system afterwards.</p>',
+        '<p class="f-hint">Sample points and tests are copied from the template for this type. Need a chiller, RO, softener…? Create new system types in <a href="#/settings/templates">Settings → System templates</a>.</p>',
       submitLabel: 'Add system',
       onSubmit: function (form, close) {
         var sys = st.addSystem(site.id, form.elements.type.value, form.elements.name.value.trim());
@@ -134,6 +141,7 @@ AA.views.system = function (root, params) {
   var sys = st.getSystem(params[0]);
   if (!sys) { root.innerHTML = '<div class="card"><div class="empty">System not found.</div></div>'; return; }
   var site = st.getSite(sys.siteId);
+  var canEdit = st.canEditSite(site);
   var points = st.pointsOf(sys.id);
   var tpl = st.data.templates[sys.type];
 
@@ -143,25 +151,30 @@ AA.views.system = function (root, params) {
     '<h1>' + u.esc(sys.name) + ' <span class="chip chip-type">' + u.esc(tpl ? tpl.label : sys.type) + '</span></h1>' +
     (sys.notes ? '<p class="page-sub">' + u.esc(sys.notes) + '</p>' : '') +
     '</div><div class="actions">' +
-    '<a class="btn btn-primary" href="#/visit/new?site=' + site.id + '">+ New Visit</a>' +
-    '<button class="btn btn-ghost" id="sys-edit">Rename / notes</button>' +
-    '<button class="btn btn-danger" id="sys-del">Delete system</button>' +
+    '<a class="btn btn-ghost" href="#/trends/' + sys.id + '">📈 Trends</a>' +
+    (canEdit ? '<a class="btn btn-primary" href="#/visit/new?site=' + site.id + '">+ New Visit</a>' : '') +
+    (canEdit ? '<button class="btn btn-ghost" id="sys-edit">Rename / notes</button>' : '') +
+    (canEdit ? '<button class="btn btn-danger" id="sys-del">Delete system</button>' : '') +
     '</div></div>';
 
   /* products applied to this system */
   html += '<div class="card"><div class="page-head" style="margin-bottom:8px"><div class="grow"><h2 style="margin:0">Products applied</h2></div>' +
-    '<div class="actions"><button class="btn btn-ghost btn-sm" id="add-prod">+ Assign product</button></div></div>';
+    (canEdit ? '<div class="actions"><button class="btn btn-ghost btn-sm" id="add-prod">+ Assign product</button></div>' : '') + '</div>';
   var assigned = sys.products || [];
   if (!assigned.length) {
     html += '<p class="td-sub">No products assigned. Manage your product catalog in <a href="#/settings/products">Settings → Products</a>.</p>';
   } else {
-    html += '<div class="table-wrap"><table class="data"><thead><tr><th>Product</th><th>Feed / target</th><th></th></tr></thead><tbody>';
+    html += '<div class="table-wrap"><table class="data"><thead><tr><th>Product</th><th>Feed / target</th><th class="num">Stock level</th><th>Status</th><th></th></tr></thead><tbody>';
     assigned.forEach(function (ap, i) {
       var p = st.getProduct(ap.productId);
+      var last = st.latestProductLevel(sys.id, ap.productId);
+      var low = ap.lowLevel != null && last && last.level <= ap.lowLevel;
       html += '<tr><td><strong>' + u.esc(p ? p.name : '(deleted product)') + '</strong>' +
         (p && p.description ? '<div class="td-sub">' + u.esc(p.description) + '</div>' : '') + '</td>' +
         '<td class="td-sub">' + (u.esc(ap.dose) || (p ? u.esc(p.dose) : '') || '—') + '</td>' +
-        '<td class="num"><button class="btn btn-ghost btn-sm unassign-prod" data-i="' + i + '">Remove</button></td></tr>';
+        '<td class="num">' + (last ? '<strong>' + u.fmtNum(last.level, 0) + '</strong> ' + u.esc(ap.unit || '') + '<div class="td-sub">' + u.fmtDate(last.date) + '</div>' : '<span class="td-sub">not recorded</span>') + '</td>' +
+        '<td>' + (ap.lowLevel == null ? '<span class="td-sub">no threshold</span>' : (low ? '<span class="chip chip-low">▼ Low stock</span>' : (last ? '<span class="chip chip-ok">✓ OK</span>' : '<span class="td-sub">—</span>'))) + '</td>' +
+        '<td class="num">' + (canEdit ? '<button class="btn btn-ghost btn-sm unassign-prod" data-i="' + i + '">Remove</button>' : '') + '</td></tr>';
     });
     html += '</tbody></table></div>';
   }
@@ -170,7 +183,7 @@ AA.views.system = function (root, params) {
   /* sample points */
   html += '<div class="page-head" style="margin-bottom:6px"><div class="grow"><h2 style="margin:0">Sample points</h2>' +
     '<p class="page-sub">Tests, expected ranges and latest results per sample point — click a row for full history & trend.</p></div>' +
-    '<div class="actions"><button class="btn btn-ghost btn-sm" id="add-point">+ Add sample point</button></div></div>';
+    (canEdit ? '<div class="actions"><button class="btn btn-ghost btn-sm" id="add-point">+ Add sample point</button></div>' : '') + '</div>';
 
   if (!points.length) {
     html += '<div class="card"><div class="empty">No sample points on this system yet.</div></div>';
@@ -178,11 +191,12 @@ AA.views.system = function (root, params) {
 
   points.forEach(function (pt) {
     html += '<div class="card"><div class="page-head" style="margin-bottom:6px"><div class="grow"><h3 style="margin:0">🧪 ' + u.esc(pt.name) + '</h3></div>' +
+      (canEdit ?
       '<div class="actions">' +
       '<button class="btn btn-ghost btn-sm pt-addtest" data-pt="' + pt.id + '">+ Add test</button>' +
       '<button class="btn btn-ghost btn-sm pt-rename" data-pt="' + pt.id + '">Rename</button>' +
       '<button class="btn btn-danger btn-sm pt-del" data-pt="' + pt.id + '">Delete</button>' +
-      '</div></div>';
+      '</div>' : '') + '</div>';
     if (!pt.tests.length) {
       html += '<p class="td-sub">No tests configured for this sample point.</p>';
     } else {
@@ -196,11 +210,11 @@ AA.views.system = function (root, params) {
         var flag = last ? st.evalFlag(last.value, range) : null;
         html += '<tr class="rowlink" data-href="#/history/' + pt.id + '/' + def.id + '">' +
           '<td><strong>' + u.esc(def.name) + '</strong>' + (def.unit ? ' <span class="td-sub">' + u.esc(def.unit) + '</span>' : '') + '</td>' +
-          '<td class="td-sub">' + u.esc(u.rangeText(range)) + ' <button class="btn btn-ghost btn-sm t-range" data-pt="' + pt.id + '" data-test="' + def.id + '">edit</button></td>' +
+          '<td class="td-sub">' + u.esc(u.rangeText(range)) + (canEdit ? ' <button class="btn btn-ghost btn-sm t-range" data-pt="' + pt.id + '" data-test="' + def.id + '">edit</button>' : '') + '</td>' +
           '<td class="num">' + (last ? '<strong>' + u.fmtNum(last.value, def.decimals) + '</strong>' : '—') + '</td>' +
           '<td>' + (last ? AA.ui.flagChip(flag) : '<span class="td-sub">no data</span>') + '</td>' +
           '<td class="td-sub">' + (last ? u.fmtDate(last.date) : '—') + '</td>' +
-          '<td class="num"><button class="btn btn-ghost btn-sm t-remove" data-pt="' + pt.id + '" data-test="' + def.id + '">remove</button></td></tr>';
+          '<td class="num">' + (canEdit ? '<button class="btn btn-ghost btn-sm t-remove" data-pt="' + pt.id + '" data-test="' + def.id + '">remove</button>' : '') + '</td></tr>';
       });
       html += '</tbody></table></div>';
     }
@@ -210,6 +224,7 @@ AA.views.system = function (root, params) {
   root.innerHTML = html;
   AA.views._wireRowLinks(root);
   var rerender = function () { AA.views.system(root, params); };
+  if (!canEdit) return;
 
   document.getElementById('sys-edit').addEventListener('click', function () {
     AA.ui.modal({
@@ -240,20 +255,28 @@ AA.views.system = function (root, params) {
       title: 'Assign Product',
       bodyHTML:
         '<label class="f">Product<select name="productId">' + opts + '</select></label>' +
-        '<label class="f">Feed / target for this system <span class="f-hint">(optional — defaults to the product’s standard dose)</span><input name="dose" placeholder="e.g. Maintain 30–60 ppm"></label>',
+        '<label class="f">Feed / target for this system <span class="f-hint">(optional — defaults to the product’s standard dose)</span><input name="dose" placeholder="e.g. Maintain 30–60 ppm"></label>' +
+        '<div class="f-row">' +
+        '<label class="f">Stock unit <span class="f-hint">(for inventory tracking)</span><input name="unit" placeholder="gal, drums, %…"></label>' +
+        '<label class="f">Low-stock alert at ≤ <span class="f-hint">(optional)</span><input name="lowLevel" type="number" step="any"></label>' +
+        '</div>' +
+        '<p class="f-hint">If you set a unit, reps can record the on-hand level at each visit; a low-stock alert appears when it hits the threshold.</p>',
       submitLabel: 'Assign',
       onSubmit: function (form, close) {
-        sys.products = sys.products || [];
-        sys.products.push({ productId: form.elements.productId.value, dose: form.elements.dose.value.trim() });
-        st.save(); close(); rerender();
+        var f = form.elements;
+        st.assignProduct(sys.id, {
+          productId: f.productId.value, dose: f.dose.value.trim(),
+          unit: f.unit.value.trim(), lowLevel: u.num(f.lowLevel.value)
+        });
+        close(); rerender();
       }
     });
   });
 
   root.querySelectorAll('.unassign-prod').forEach(function (btn) {
     btn.addEventListener('click', function () {
-      sys.products.splice(Number(btn.getAttribute('data-i')), 1);
-      st.save(); rerender();
+      st.unassignProduct(sys.id, Number(btn.getAttribute('data-i')));
+      rerender();
     });
   });
 
@@ -314,12 +337,12 @@ AA.views.system = function (root, params) {
           '<p class="f-hint">Don’t see the test you need? Create it in Settings → Tests, then add it here.</p>',
         submitLabel: 'Add test',
         onSubmit: function (form, close) {
-          pt.tests.push({
+          st.addTestToPoint(pt.id, {
             testId: form.elements.testId.value,
             min: u.num(form.elements.min.value),
             max: u.num(form.elements.max.value)
           });
-          st.save(); close(); rerender();
+          close(); rerender();
         }
       });
     });
@@ -330,8 +353,8 @@ AA.views.system = function (root, params) {
       var pt = st.getPoint(btn.getAttribute('data-pt'));
       var def = st.getTest(btn.getAttribute('data-test'));
       if (confirm('Remove "' + (def ? def.name : '?') + '" from ' + pt.name + '? Recorded values stay in past visit reports but the test will no longer be scheduled or trended here.')) {
-        pt.tests = pt.tests.filter(function (t) { return t.testId !== btn.getAttribute('data-test'); });
-        st.save(); rerender();
+        st.removeTestFromPoint(pt.id, btn.getAttribute('data-test'));
+        rerender();
       }
     });
   });
@@ -360,9 +383,8 @@ AA.views._editRange = function (pointId, testId, onDone) {
       '<label class="f">Max' + (def.unit ? ' <span class="f-hint">' + u.esc(def.unit) + '</span>' : '') + '<input name="max" type="number" step="any" value="' + (entry.max != null ? entry.max : '') + '"></label>' +
       '</div>',
     onSubmit: function (form, close) {
-      entry.min = u.num(form.elements.min.value);
-      entry.max = u.num(form.elements.max.value);
-      st.save(); close();
+      st.setPointTestRange(pt.id, testId, u.num(form.elements.min.value), u.num(form.elements.max.value));
+      close();
       AA.ui.toast('Range updated — history is re-flagged against the new range.', 'success');
       if (onDone) onDone();
     }
@@ -377,68 +399,95 @@ AA.views.history = function (root, params) {
   if (!pt || !def) { root.innerHTML = '<div class="card"><div class="empty">Not found.</div></div>'; return; }
   var sys = st.getSystem(pt.systemId);
   var site = sys ? st.getSite(sys.siteId) : null;
+  var canEdit = st.canEditSite(site);
   var range = st.effRange(pt, def.id);
-  var hist = st.history(pt.id, def.id);
+  var fullHist = st.history(pt.id, def.id);
+  var streak = st.outOfRangeStreak(pt.id, def.id);
 
-  hist.forEach(function (h) { h.flag = st.evalFlag(h.value, range); });
-  var flagged = hist.filter(function (h) { return h.flag === 'low' || h.flag === 'high'; }).length;
+  function render() {
+    var hist = AA.filters.filterHistory(fullHist);
+    hist.forEach(function (h) { h.flag = st.evalFlag(h.value, range); });
+    var flagged = hist.filter(function (h) { return h.flag === 'low' || h.flag === 'high'; }).length;
 
-  var stats = null;
-  if (hist.length) {
-    var vals = hist.map(function (h) { return h.value; });
-    stats = {
-      latest: vals[vals.length - 1],
-      min: Math.min.apply(null, vals),
-      max: Math.max.apply(null, vals),
-      avg: vals.reduce(function (a, b) { return a + b; }, 0) / vals.length
-    };
-  }
+    var stats = null;
+    if (hist.length) {
+      var vals = hist.map(function (h) { return h.value; });
+      stats = {
+        latest: vals[vals.length - 1],
+        min: Math.min.apply(null, vals),
+        max: Math.max.apply(null, vals),
+        avg: vals.reduce(function (a, b) { return a + b; }, 0) / vals.length
+      };
+    }
 
-  var html =
-    '<div class="page-head"><div class="grow">' +
-    '<div class="crumbs"><a href="#/sites">Sites</a> / <a href="#/site/' + (site ? site.id : '') + '">' + u.esc(site ? site.name : '?') + '</a> / ' +
-    '<a href="#/system/' + (sys ? sys.id : '') + '">' + u.esc(sys ? sys.name : '?') + '</a> / ' + u.esc(pt.name) + '</div>' +
-    '<h1>' + u.esc(def.name) + (def.unit ? ' <span class="td-sub">(' + u.esc(def.unit) + ')</span>' : '') + '</h1>' +
-    '<p class="page-sub">' + u.esc(pt.name) + ' — expected: <strong>' + u.esc(u.rangeText(range)) + '</strong>' +
-    (def.description ? ' · ' + u.esc(def.description) : '') + '</p>' +
-    '</div><div class="actions"><button class="btn btn-ghost" id="hist-range">Edit expected range</button></div></div>';
+    var html =
+      '<div class="page-head"><div class="grow">' +
+      '<div class="crumbs"><a href="#/sites">Sites</a> / <a href="#/site/' + (site ? site.id : '') + '">' + u.esc(site ? site.name : '?') + '</a> / ' +
+      '<a href="#/system/' + (sys ? sys.id : '') + '">' + u.esc(sys ? sys.name : '?') + '</a> / ' + u.esc(pt.name) + '</div>' +
+      '<h1>' + u.esc(def.name) + (def.unit ? ' <span class="td-sub">(' + u.esc(def.unit) + ')</span>' : '') +
+      (streak >= 3 ? ' ' + AA.ui.chronicChip() : '') + '</h1>' +
+      '<p class="page-sub">' + u.esc(pt.name) + ' — expected: <strong>' + u.esc(u.rangeText(range)) + '</strong>' +
+      (def.description ? ' · ' + u.esc(def.description) : '') + '</p>' +
+      '</div><div class="actions">' +
+      '<button class="btn btn-ghost" id="hist-csv">⬇ CSV</button>' +
+      (canEdit ? '<button class="btn btn-ghost" id="hist-range">Edit expected range</button>' : '') +
+      '</div></div>';
 
-  if (stats) {
-    html += '<div class="tiles">' +
-      '<div class="tile"><div class="t-label">Latest</div><div class="t-value">' + u.fmtNum(stats.latest, def.decimals) + '</div><div class="t-note">' + u.fmtDate(hist[hist.length - 1].date) + '</div></div>' +
-      '<div class="tile"><div class="t-label">Average</div><div class="t-value">' + u.fmtNum(stats.avg, def.decimals) + '</div><div class="t-note">across ' + hist.length + ' readings</div></div>' +
-      '<div class="tile"><div class="t-label">Observed min – max</div><div class="t-value" style="font-size:1.2rem">' + u.fmtNum(stats.min, def.decimals) + ' – ' + u.fmtNum(stats.max, def.decimals) + '</div></div>' +
-      '<div class="tile' + (flagged ? ' alert' : '') + '"><div class="t-label">Out of range</div><div class="t-value">' + flagged + '</div><div class="t-note">of ' + hist.length + ' readings</div></div>' +
-      '</div>';
-  }
+    html += AA.filters.rowHTML();
 
-  html += '<div class="card"><h2>Trend</h2><div id="trend"></div></div>';
+    if (stats) {
+      html += '<div class="tiles">' +
+        '<div class="tile"><div class="t-label">Latest</div><div class="t-value">' + u.fmtNum(stats.latest, def.decimals) + '</div><div class="t-note">' + u.fmtDate(hist[hist.length - 1].date) + '</div></div>' +
+        '<div class="tile"><div class="t-label">Average</div><div class="t-value">' + u.fmtNum(stats.avg, def.decimals) + '</div><div class="t-note">across ' + hist.length + ' readings</div></div>' +
+        '<div class="tile"><div class="t-label">Observed min – max</div><div class="t-value" style="font-size:1.2rem">' + u.fmtNum(stats.min, def.decimals) + ' – ' + u.fmtNum(stats.max, def.decimals) + '</div></div>' +
+        '<div class="tile' + (flagged ? ' alert' : '') + '"><div class="t-label">Out of range</div><div class="t-value">' + flagged + '</div><div class="t-note">of ' + hist.length + ' readings' + (streak >= 3 ? ' · ' + streak + ' in a row' : '') + '</div></div>' +
+        '</div>';
+    }
 
-  html += '<div class="card"><h2>Readings</h2>';
-  if (!hist.length) {
-    html += '<p class="td-sub">No data yet — record a visit to start the history.</p>';
-  } else {
-    html += '<div class="table-wrap"><table class="data"><thead><tr>' +
-      '<th>Date</th><th class="num">Value</th><th>Status</th><th>Rep</th><th>Comment</th><th></th></tr></thead><tbody>';
-    hist.slice().reverse().forEach(function (h) {
-      html += '<tr><td>' + u.fmtDate(h.date) + '</td>' +
-        '<td class="num"><strong>' + u.fmtNum(h.value, def.decimals) + '</strong>' + (def.unit ? ' <span class="td-sub">' + u.esc(def.unit) + '</span>' : '') + '</td>' +
-        '<td>' + AA.ui.flagChip(h.flag) + '</td>' +
-        '<td class="td-sub">' + u.esc(h.rep || '—') + '</td>' +
-        '<td class="td-sub">' + (u.esc(h.comment) || '—') + '</td>' +
-        '<td class="td-sub"><a href="#/visit/' + h.visitId + '">visit →</a></td></tr>';
+    html += '<div class="card"><h2>Trend</h2><div id="trend"></div></div>';
+
+    html += '<div class="card"><h2>Readings</h2>';
+    if (!hist.length) {
+      html += '<p class="td-sub">No data in this period — widen the time range above, or record a visit.</p>';
+    } else {
+      html += '<div class="table-wrap"><table class="data"><thead><tr>' +
+        '<th>Date</th><th class="num">Value</th><th>Status</th><th>Rep</th><th>Comment</th><th></th></tr></thead><tbody>';
+      hist.slice().reverse().forEach(function (h) {
+        html += '<tr><td>' + u.fmtDate(h.date) + '</td>' +
+          '<td class="num"><strong>' + u.fmtNum(h.value, def.decimals) + '</strong>' + (def.unit ? ' <span class="td-sub">' + u.esc(def.unit) + '</span>' : '') + '</td>' +
+          '<td>' + AA.ui.flagChip(h.flag) + '</td>' +
+          '<td class="td-sub">' + u.esc(h.rep || '—') + '</td>' +
+          '<td class="td-sub">' + (u.esc(h.comment) || '—') + '</td>' +
+          '<td class="td-sub"><a href="#/visit/' + h.visitId + '">visit →</a></td></tr>';
+      });
+      html += '</tbody></table></div>';
+    }
+    html += '</div>';
+
+    root.innerHTML = html;
+
+    AA.chart.render(document.getElementById('trend'), {
+      points: hist, range: range, unit: def.unit, decimals: def.decimals
     });
-    html += '</tbody></table></div>';
+
+    AA.filters.wireRow(root, render);
+
+    document.getElementById('hist-csv').addEventListener('click', function () {
+      var rows = [['Date', 'Test', 'Sample point', 'System', 'Site', 'Value', 'Unit', 'Expected min', 'Expected max', 'Status', 'Rep', 'Comment']];
+      hist.forEach(function (h) {
+        rows.push([h.date, def.name, pt.name, sys ? sys.name : '', site ? site.name : '',
+          h.value, def.unit, range.min != null ? range.min : '', range.max != null ? range.max : '',
+          h.flag || '', h.rep || '', h.comment || '']);
+      });
+      var csv = rows.map(function (r) { return r.map(u.csvCell).join(','); }).join('\n');
+      u.download('aquatrack-' + u.slug(site ? site.name : 'site') + '-' + u.slug(def.name) + '.csv', csv, 'text/csv');
+    });
+
+    var rangeBtn = document.getElementById('hist-range');
+    if (rangeBtn) rangeBtn.addEventListener('click', function () {
+      AA.views._editRange(pt.id, def.id, function () { AA.views.history(root, params); });
+    });
   }
-  html += '</div>';
 
-  root.innerHTML = html;
-
-  AA.chart.render(document.getElementById('trend'), {
-    points: hist, range: range, unit: def.unit, decimals: def.decimals
-  });
-
-  document.getElementById('hist-range').addEventListener('click', function () {
-    AA.views._editRange(pt.id, def.id, function () { AA.views.history(root, params); });
-  });
+  render();
 };

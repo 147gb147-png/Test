@@ -18,9 +18,11 @@
       <a href="#/dashboard" data-nav="dashboard">Dashboard</a>
       <a href="#/sites" data-nav="sites">Sites</a>
       <a href="#/map" data-nav="map">Map</a>
+      <a href="#/admin" data-nav="admin" style="display:none">Admin</a>
       <a href="#/settings" data-nav="settings">Settings</a>
       <a href="#/visit/new" data-nav="visit" class="btn btn-primary nav-cta">+ New Visit</a>
     </nav>
+    <div class="nav-user" id="nav-user"></div>
   </header>
 
   <main id="view" class="view"></main>
@@ -30,14 +32,18 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
   <script src="js/util.js"></script>
+  <script src="js/api.js"></script>
   <script src="js/defaults.js"></script>
   <script src="js/store.js"></script>
   <script src="js/geocode.js"></script>
   <script src="js/chart.js"></script>
+  <script src="js/views/login.js"></script>
   <script src="js/views/core.js"></script>
   <script src="js/views/site.js"></script>
   <script src="js/views/visit.js"></script>
+  <script src="js/views/trends.js"></script>
   <script src="js/views/map.js"></script>
+  <script src="js/views/admin.js"></script>
   <script src="js/views/settings.js"></script>
   <script src="js/app.js"></script>
 </body>

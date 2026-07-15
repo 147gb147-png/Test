@@ -12,9 +12,6 @@
 window.AA = window.AA || {};
 
 AA.chart = (function () {
-  var W = 800, H = 300;
-  var PAD = { l: 58, r: 20, t: 20, b: 34 };
-
   var C = {
     line: '#2a78d6',      /* series blue */
     flag: '#d03b3b',      /* status critical — out-of-range marks only */
@@ -41,8 +38,11 @@ AA.chart = (function () {
    *   opts.range    {min, max} (either may be null)
    *   opts.unit     e.g. 'ppm SO₃²⁻'
    *   opts.decimals value formatting
+   *   opts.compact  smaller geometry for small-multiple trend grids
    */
   function render(container, opts) {
+    var W = opts.compact ? 420 : 800, H = opts.compact ? 190 : 300;
+    var PAD = opts.compact ? { l: 46, r: 14, t: 16, b: 24 } : { l: 58, r: 20, t: 20, b: 34 };
     var pts = opts.points || [];
     container.classList.add('chart');
     container.innerHTML = '';
@@ -77,15 +77,15 @@ AA.chart = (function () {
     });
 
     /* ---- y ticks ---- */
-    var step = niceStep((hi - lo) / 4);
+    var step = niceStep((hi - lo) / (opts.compact ? 3 : 4));
     var ticks = [];
     for (var tv = Math.ceil(lo / step) * step; tv <= hi + 1e-9; tv += step) {
       ticks.push(Math.round(tv * 1e6) / 1e6);
     }
 
-    /* ---- x ticks (up to 6 dates) ---- */
+    /* ---- x ticks ---- */
     var xt = [];
-    var nx = Math.min(6, pts.length);
+    var nx = Math.min(opts.compact ? 3 : 6, pts.length);
     for (var i = 0; i < nx; i++) {
       var tt = t0 + (t1 - t0) * (nx === 1 ? 0.5 : i / (nx - 1));
       xt.push(tt);

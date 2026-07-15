@@ -1,0 +1,6 @@
+# AquaTrack server data (accounts, sessions, shared store) — never commit
+data/
+
+node_modules/
+*.log
+.DS_Store

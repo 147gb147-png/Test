@@ -1,9 +1,9 @@
 /*
  * AquaTrack — default catalog: tests, system templates, products, demo data.
- * Everything here is a STARTING POINT — all of it is editable in Settings.
- * Control limits are typical industrial water treatment guidelines (ASME-style
- * boiler limits for <300 psi firetube boilers, common open recirculating
- * cooling guidelines). Always tailor them per site in Settings / per sample point.
+ * Everything here is a STARTING POINT — all of it is editable in Settings,
+ * including creating entirely new system types (chillers, RO, softeners…).
+ * Control limits are typical industrial water treatment guidelines. Always
+ * tailor them per site / sample point to your actual program design.
  */
 window.AA = window.AA || {};
 
@@ -41,7 +41,26 @@ AA.defaults = (function () {
 
   /* ------------------------------------------------- system-type templates
    * When a system is created these sample points (and their tests + expected
-   * ranges) are copied onto it. min/max null = inherit the test's default. */
+   * ranges) are copied onto it. min/max null = inherit the test's default.
+   * New system types can be created in Settings → System templates. */
+  var CLOSED_LOOP = {
+    label: 'Closed Loop (Chilled / Hot Water)',
+    samplePoints: [
+      {
+        name: 'Loop Water',
+        tests: [
+          { testId: 'ph',        min: 8.5,  max: 10.5 },
+          { testId: 'cond',      min: null, max: null },
+          { testId: 'nitrite',   min: 500,  max: 1000 },
+          { testId: 'molybdate', min: null, max: null },
+          { testId: 'glycol',    min: null, max: null },
+          { testId: 'iron',      min: null, max: 1 },
+          { testId: 'copper',    min: null, max: 0.2 }
+        ]
+      }
+    ]
+  };
+
   var TEMPLATES = {
     boiler: {
       label: 'Boiler System',
@@ -132,7 +151,8 @@ AA.defaults = (function () {
           ]
         }
       ]
-    }
+    },
+    closed_loop: CLOSED_LOOP
   };
 
   /* ------------------------------------------------------------- products */
@@ -140,12 +160,13 @@ AA.defaults = (function () {
     { id: 'p-bwt100', name: 'BWT-100 Boiler Internal Treatment', description: 'Catalyzed sulphite oxygen scavenger with polymeric sludge conditioner.', dose: 'Maintain 20–60 ppm sulphite in boiler water', notes: 'Example product — replace with your own line in Settings → Products.' },
     { id: 'p-bwt250', name: 'BWT-250 Condensate Treatment', description: 'Neutralizing amine blend for condensate line protection.', dose: 'Maintain condensate pH 7.5–9.0', notes: 'Example product.' },
     { id: 'p-cwt310', name: 'CWT-310 Cooling Water Inhibitor', description: 'Phosphate / azole scale and corrosion inhibitor for open recirculating systems.', dose: 'Maintain 8–15 ppm PO₄ in recirculating water', notes: 'Example product.' },
-    { id: 'p-cwt450', name: 'CWT-450 Oxidizing Biocide', description: 'Slow-release bromine tablets for microbiological control.', dose: 'Maintain 0.5–1.0 ppm free halogen', notes: 'Example product.' }
+    { id: 'p-cwt450', name: 'CWT-450 Oxidizing Biocide', description: 'Slow-release bromine tablets for microbiological control.', dose: 'Maintain 0.5–1.0 ppm free halogen', notes: 'Example product.' },
+    { id: 'p-clt500', name: 'CLT-500 Closed Loop Treatment', description: 'Nitrite / azole corrosion inhibitor for closed loops.', dose: 'Maintain 500–1000 ppm nitrite', notes: 'Example product.' }
   ];
 
   function blank() {
     return {
-      version: 1,
+      version: 2,
       settings: { companyName: '', defaultRep: '' },
       testDefs: AA.util.clone(TESTS),
       templates: AA.util.clone(TEMPLATES),
@@ -153,7 +174,8 @@ AA.defaults = (function () {
       sites: [],
       systems: [],
       samplePoints: [],
-      visits: []
+      visits: [],
+      tombstones: {}
     };
   }
 
@@ -166,7 +188,8 @@ AA.defaults = (function () {
     'Boiler Water':         { ph: [11.2, 0.35], cond: [2700, 380], tds: [2500, 350], p_alk: [420, 90], m_alk: [640, 90], oh_alk: [340, 70], sulphite: [38, 10], phosphate: [44, 7], chloride: [180, 45], t_hard: [0.3, 0.2], silica: [88, 22], iron: [0.4, 0.2] },
     'Condensate':           { ph: [8.2, 0.3], cond: [18, 8], t_hard: [0.2, 0.15], iron: [0.05, 0.03], copper: [0.01, 0.008] },
     'Makeup Water:cooling': { ph: [7.5, 0.3], cond: [350, 45], t_hard: [140, 20], ca_hard: [95, 15], m_alk: [110, 15], chloride: [40, 8], silica: [18, 4], iron: [0.1, 0.05] },
-    'Recirculating Water':  { ph: [8.5, 0.25], cond: [1750, 280], t_hard: [640, 90], ca_hard: [420, 70], m_alk: [320, 60], chloride: [210, 40], cycles: [5.2, 1.0], free_cl: [0.72, 0.16], orp: [520, 55], phosphate: [11.5, 2.0], azole: [2.1, 0.5], iron: [0.4, 0.2], silica: [92, 20], temp: [27, 3], dip_slide: [1000, 900] }
+    'Recirculating Water':  { ph: [8.5, 0.25], cond: [1750, 280], t_hard: [640, 90], ca_hard: [420, 70], m_alk: [320, 60], chloride: [210, 40], cycles: [5.2, 1.0], free_cl: [0.72, 0.16], orp: [520, 55], phosphate: [11.5, 2.0], azole: [2.1, 0.5], iron: [0.4, 0.2], silica: [92, 20], temp: [27, 3], dip_slide: [1000, 900] },
+    'Loop Water':           { ph: [9.4, 0.3], cond: [2800, 160], nitrite: [720, 120], molybdate: [4, 1], glycol: [21, 1.2], iron: [0.3, 0.15], copper: [0.04, 0.03] }
   };
 
   function demoBaseFor(pointName, systemType) {
@@ -181,10 +204,22 @@ AA.defaults = (function () {
     return Math.round(v * f) / f;
   }
 
+  /* Sawtooth product level: consumes ratePerWeek from start, refilled when it
+   * dips below refillAt (refillAt=null means never refilled in the demo). */
+  function levelAt(weeksElapsed, start, ratePerWeek, refillAt) {
+    var lvl = start;
+    for (var i = 0; i < weeksElapsed; i++) {
+      lvl -= ratePerWeek;
+      if (refillAt != null && lvl < refillAt) lvl = start;
+    }
+    return Math.max(0, Math.round(lvl));
+  }
+
   /*
    * Build a full demo dataset: 3 sites (with coordinates so the map works
-   * immediately), boiler + cooling systems, and ~10 weekly visits per site
-   * including a few deliberately out-of-range results and comments.
+   * immediately), boiler / cooling / closed-loop systems, ~14 weekly visits
+   * per site with deliberate out-of-range stories, comments, product levels
+   * and one overdue site.
    */
   function demoData() {
     var d = blank();
@@ -193,38 +228,54 @@ AA.defaults = (function () {
     d.settings.defaultRep = 'A. Rivera';
 
     var sites = [
-      { name: 'Riverside Hospital', contact: 'M. Okafor (Chief Engineer)', phone: '(614) 555-0142', email: 'engineering@riversidehosp.example', address: { line1: '1200 River Rd', city: 'Columbus', region: 'OH', postal: '43215', country: 'USA' }, lat: 39.9702, lng: -83.0150, notes: 'Access via loading dock B. Boiler room badge required.', systems: ['boiler', 'cooling_tower'] },
-      { name: 'Maplewood Foods Plant', contact: 'S. Grant (Maintenance Lead)', phone: '(216) 555-0187', email: 'maintenance@maplewoodfoods.example', address: { line1: '450 Industrial Pkwy', city: 'Cleveland', region: 'OH', postal: '44113', country: 'USA' }, lat: 41.4820, lng: -81.7040, notes: 'Steam used for process cooking — condensate quality critical.', systems: ['boiler'] },
-      { name: 'Lakeside Office Tower', contact: 'D. Kim (Property Manager)', phone: '(312) 555-0116', email: 'ops@lakesidetower.example', address: { line1: '233 W Lake St', city: 'Chicago', region: 'IL', postal: '60606', country: 'USA' }, lat: 41.8858, lng: -87.6355, notes: 'Two-cell tower on roof; seasonal shutdown Nov–Mar.', systems: ['cooling_tower'] }
+      { name: 'Riverside Hospital', contact: 'M. Okafor (Chief Engineer)', phone: '(614) 555-0142', email: 'engineering@riversidehosp.example', address: { line1: '1200 River Rd', city: 'Columbus', region: 'OH', postal: '43215', country: 'USA' }, lat: 39.9702, lng: -83.0150, notes: 'Access via loading dock B. Boiler room badge required.', systems: ['boiler', 'cooling_tower'], offsetDays: 0, interval: 7 },
+      { name: 'Maplewood Foods Plant', contact: 'S. Grant (Maintenance Lead)', phone: '(216) 555-0187', email: 'maintenance@maplewoodfoods.example', address: { line1: '450 Industrial Pkwy', city: 'Cleveland', region: 'OH', postal: '44113', country: 'USA' }, lat: 41.4820, lng: -81.7040, notes: 'Steam used for process cooking — condensate quality critical.', systems: ['boiler'], offsetDays: 11, interval: 7 },
+      { name: 'Lakeside Office Tower', contact: 'D. Kim (Property Manager)', phone: '(312) 555-0116', email: 'ops@lakesidetower.example', address: { line1: '233 W Lake St', city: 'Chicago', region: 'IL', postal: '60606', country: 'USA' }, lat: 41.8858, lng: -87.6355, notes: 'Two-cell tower on roof; seasonal shutdown Nov–Mar. Chilled loop serves floors 1–22.', systems: ['cooling_tower', 'closed_loop'], offsetDays: 1, interval: 7 }
     ];
 
     var reps = ['A. Rivera', 'J. Chen'];
+    var WEEKS = 14;
 
     sites.forEach(function (s, si) {
       var site = {
         id: u.id(), name: s.name, contact: s.contact, phone: s.phone, email: s.email,
-        address: s.address, lat: s.lat, lng: s.lng, notes: s.notes, createdAt: u.daysAgoISO(90)
+        address: s.address, lat: s.lat, lng: s.lng, notes: s.notes,
+        repId: null, serviceIntervalDays: s.interval,
+        createdAt: u.daysAgoISO(120), _ts: 1
       };
       d.sites.push(site);
 
       var sitePoints = [];
+      var siteSystems = [];
       s.systems.forEach(function (type) {
-        var sys = { id: u.id(), siteId: site.id, type: type, name: d.templates[type].label, notes: '', products: [] };
-        if (type === 'boiler') sys.products = [{ productId: 'p-bwt100', dose: 'Feed to maintain 20–60 ppm sulphite' }, { productId: 'p-bwt250', dose: 'Feed to condensate header' }];
-        else sys.products = [{ productId: 'p-cwt310', dose: 'Maintain 8–15 ppm PO₄' }, { productId: 'p-cwt450', dose: '1 tablet per feeder slot' }];
+        var sys = { id: u.id(), siteId: site.id, type: type, name: d.templates[type].label, notes: '', products: [], _ts: 1 };
+        if (type === 'boiler') {
+          sys.products = [
+            { productId: 'p-bwt100', dose: 'Feed to maintain 20–60 ppm sulphite', unit: 'gal', lowLevel: 15 },
+            { productId: 'p-bwt250', dose: 'Feed to condensate header', unit: 'gal', lowLevel: 8 }
+          ];
+        } else if (type === 'cooling_tower') {
+          sys.products = [
+            { productId: 'p-cwt310', dose: 'Maintain 8–15 ppm PO₄', unit: 'gal', lowLevel: 10 },
+            { productId: 'p-cwt450', dose: '2 tablets per feeder slot', unit: 'tubs', lowLevel: 2 }
+          ];
+        } else {
+          sys.products = [{ productId: 'p-clt500', dose: 'Maintain 500–1000 ppm nitrite', unit: 'gal', lowLevel: 5 }];
+        }
         d.systems.push(sys);
+        siteSystems.push(sys);
         AA.util.clone(d.templates[type].samplePoints).forEach(function (tp) {
-          var pt = { id: u.id(), systemId: sys.id, name: tp.name, tests: tp.tests };
+          var pt = { id: u.id(), systemId: sys.id, name: tp.name, tests: tp.tests, _ts: 1 };
           d.samplePoints.push(pt);
           sitePoints.push({ point: pt, type: type });
         });
       });
 
-      /* ~10 weekly visits */
-      for (var w = 9; w >= 0; w--) {
+      for (var w = WEEKS - 1; w >= 0; w--) {
         var visit = {
-          id: u.id(), siteId: site.id, date: u.daysAgoISO(w * 7 + si),
-          rep: reps[(w + si) % reps.length], notes: '', readings: [], createdAt: u.daysAgoISO(w * 7 + si)
+          id: u.id(), siteId: site.id, date: u.daysAgoISO(w * 7 + s.offsetDays),
+          rep: reps[(w + si) % reps.length], notes: '', readings: [], productLevels: [],
+          createdAt: u.daysAgoISO(w * 7 + s.offsetDays), _ts: 1
         };
         sitePoints.forEach(function (sp) {
           var bases = demoBaseFor(sp.point.name, sp.type);
@@ -240,10 +291,10 @@ AA.defaults = (function () {
             if (s.name === 'Riverside Hospital' && sp.point.name === 'Boiler Water' && t.testId === 'sulphite' && w === 0) {
               val = 12; comment = 'Chemical feed pump found air-locked — re-primed on site. Recheck next visit.';
             }
-            if (s.name === 'Riverside Hospital' && sp.point.name === 'Recirculating Water' && t.testId === 'free_cl' && w === 0) {
-              val = 0.2; comment = 'Bromine feeder empty. Refilled; residual should recover within 24 h.';
+            if (s.name === 'Riverside Hospital' && sp.point.name === 'Recirculating Water' && t.testId === 'free_cl' && w <= 2) {
+              val = [0.2, 0.31, 0.4][w]; comment = w === 0 ? 'Bromine feeder empty and biocide stock nearly out — reorder placed.' : (w === 2 ? 'Residual trending down — check feeder.' : '');
             }
-            if (s.name === 'Riverside Hospital' && sp.point.name === 'Recirculating Water' && t.testId === 'dip_slide' && w === 4) {
+            if (s.name === 'Riverside Hospital' && sp.point.name === 'Recirculating Water' && t.testId === 'dip_slide' && w === 5) {
               val = 100000; comment = 'Elevated count after feeder outage — shock dosed non-oxidizer.';
             }
             if (s.name === 'Maplewood Foods Plant' && sp.point.name === 'Condensate' && t.testId === 'iron' && w <= 1) {
@@ -257,8 +308,27 @@ AA.defaults = (function () {
             visit.readings.push({ samplePointId: sp.point.id, testId: t.testId, value: val, comment: comment });
           });
         });
+
+        /* product level readings (drum inventory) */
+        var elapsed = WEEKS - 1 - w;
+        siteSystems.forEach(function (sys) {
+          (sys.products || []).forEach(function (ap) {
+            var lvl = null;
+            if (ap.productId === 'p-bwt100') lvl = levelAt(elapsed, 55, 3, 18);
+            if (ap.productId === 'p-bwt250') lvl = levelAt(elapsed, 30, 1.5, 9);
+            if (ap.productId === 'p-cwt310') lvl = levelAt(elapsed, 42, 2, 12);
+            if (ap.productId === 'p-cwt450' && s.name === 'Riverside Hospital') lvl = Math.max(1, 15 - elapsed); /* never refilled — runs low */
+            if (ap.productId === 'p-cwt450' && s.name !== 'Riverside Hospital') lvl = levelAt(elapsed, 12, 0.7, 3);
+            if (ap.productId === 'p-clt500') lvl = levelAt(elapsed, 20, 0.5, 6);
+            if (lvl != null) visit.productLevels.push({ systemId: sys.id, productId: ap.productId, level: lvl });
+          });
+        });
+
         if (s.name === 'Maplewood Foods Plant' && w === 0) {
           visit.notes = 'Condensate iron trending up over the last month. Recommend increasing BWT-250 feed rate by 15% and re-testing in one week. All other parameters within program limits.';
+        }
+        if (s.name === 'Riverside Hospital' && w === 0) {
+          visit.notes = 'Free halogen below target for three consecutive visits (feeder outage) — biocide reordered, PO raised with plant engineering. Sulphite low this visit after feed pump air-lock; corrected on site.';
         }
         d.visits.push(visit);
       }
@@ -267,5 +337,5 @@ AA.defaults = (function () {
     return d;
   }
 
-  return { blank: blank, demoData: demoData, TEMPLATE_TYPES: ['boiler', 'cooling_tower'] };
+  return { blank: blank, demoData: demoData, CLOSED_LOOP: CLOSED_LOOP };
 })();

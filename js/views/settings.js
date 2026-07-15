@@ -1,10 +1,12 @@
-/* AquaTrack — Settings: test catalog, system templates, products, data & general */
+/* AquaTrack — Settings: test catalog, system templates (incl. custom system
+ * types), products, data & general */
 window.AA = window.AA || {};
 AA.views = AA.views || {};
 
 AA.views.settings = function (root, params) {
   var tab = params && params[0] ? params[0] : 'tests';
   var u = AA.util, st = AA.store;
+  var isAdmin = !AA.env.server || !AA.auth.user || AA.auth.user.role === 'admin';
 
   var tabs = [
     ['tests', 'Test catalog'],
@@ -12,10 +14,12 @@ AA.views.settings = function (root, params) {
     ['products', 'Products'],
     ['data', 'Data & general']
   ];
+  if (!isAdmin) tabs = tabs.filter(function (t) { return t[0] !== 'data'; });
+  if (!tabs.some(function (t) { return t[0] === tab; })) tab = 'tests';
 
   var html =
     '<div class="page-head"><div class="grow"><h1>Settings</h1>' +
-    '<p class="page-sub">Customize AquaTrack — your tests, expected ranges, system templates and product line</p></div></div>' +
+    '<p class="page-sub">Customize AquaTrack — your tests, expected ranges, system types and product line</p></div></div>' +
     '<div class="settings-tabs">' + tabs.map(function (t) {
       return '<a href="#/settings/' + t[0] + '" class="' + (tab === t[0] ? 'active' : '') + '">' + t[1] + '</a>';
     }).join('') + '</div><div id="settings-body"></div>';
@@ -100,13 +104,21 @@ AA.views.settings = function (root, params) {
 
   /* --------------------------------------------------------- templates tab */
   function renderTemplates(body, rerender) {
-    var html = '<div class="card"><h2>System templates</h2>' +
-      '<p class="page-sub">The sample points and tests a NEW system starts with. Existing systems are not changed — adjust those on the system page. Ranges here override the test default; blank inherits it.</p></div>';
+    var html = '<div class="card"><div class="page-head" style="margin-bottom:8px"><div class="grow"><h2 style="margin:0">System templates</h2>' +
+      '<p class="page-sub">The sample points and tests a NEW system starts with. Existing systems are not changed — adjust those on the system page. ' +
+      'Create your own system types here: chillers, closed loops, RO, softeners, waste streams — anything.</p></div>' +
+      '<div class="actions"><button class="btn btn-primary btn-sm" id="tpl-new-type">+ New system type</button></div></div></div>';
 
     Object.keys(st.data.templates).forEach(function (type) {
       var tpl = st.data.templates[type];
-      html += '<div class="card"><div class="page-head" style="margin-bottom:8px"><div class="grow"><h2 style="margin:0">' + u.esc(tpl.label) + '</h2></div>' +
-        '<div class="actions"><button class="btn btn-ghost btn-sm tpl-addpt" data-type="' + u.esc(type) + '">+ Add sample point</button></div></div>';
+      var usage = st.templateUsage(type);
+      html += '<div class="card"><div class="page-head" style="margin-bottom:8px"><div class="grow"><h2 style="margin:0">' + u.esc(tpl.label) + '</h2>' +
+        '<p class="page-sub">' + (usage ? usage + ' system' + (usage > 1 ? 's' : '') + ' of this type exist' : 'not used by any system yet') + '</p></div>' +
+        '<div class="actions">' +
+        '<button class="btn btn-ghost btn-sm tpl-addpt" data-type="' + u.esc(type) + '">+ Add sample point</button>' +
+        '<button class="btn btn-ghost btn-sm tpl-rename-type" data-type="' + u.esc(type) + '">Rename type</button>' +
+        '<button class="btn btn-danger btn-sm tpl-del-type" data-type="' + u.esc(type) + '">Delete type</button>' +
+        '</div></div>';
 
       tpl.samplePoints.forEach(function (sp, spi) {
         html += '<div class="tpl-point"><h4><span class="grow">🧪 ' + u.esc(sp.name) + '</span>' +
@@ -133,15 +145,62 @@ AA.views.settings = function (root, params) {
         }
         html += '</div>';
       });
+      if (!tpl.samplePoints.length) {
+        html += '<p class="td-sub">No sample points yet — add one, then add tests to it.</p>';
+      }
       html += '</div>';
     });
     body.innerHTML = html;
 
+    document.getElementById('tpl-new-type').addEventListener('click', function () {
+      AA.ui.modal({
+        title: 'New System Type',
+        bodyHTML:
+          '<label class="f">Type name<input name="label" required placeholder="e.g. Chiller — Condenser Loop, RO Unit, Softener"></label>' +
+          '<p class="f-hint">You’ll add its sample points and tests next. The new type immediately appears in the “Add system” list on every site.</p>',
+        submitLabel: 'Create type',
+        onSubmit: function (form, close) {
+          var label = form.elements.label.value.trim();
+          if (!label) return;
+          st.addTemplate(label);
+          close(); rerender();
+          AA.ui.toast('System type created — now add its sample points and tests.', 'success');
+        }
+      });
+    });
+
+    body.querySelectorAll('.tpl-rename-type').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var type = b.getAttribute('data-type');
+        AA.ui.modal({
+          title: 'Rename System Type',
+          bodyHTML: '<label class="f">Type name<input name="label" required value="' + u.esc(st.data.templates[type].label) + '"></label>',
+          onSubmit: function (form, close) {
+            st.renameTemplate(type, form.elements.label.value.trim());
+            close(); rerender();
+          }
+        });
+      });
+    });
+
+    body.querySelectorAll('.tpl-del-type').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var type = b.getAttribute('data-type');
+        var usage = st.templateUsage(type);
+        if (usage) {
+          AA.ui.toast('Cannot delete: ' + usage + ' system' + (usage > 1 ? 's use' : ' uses') + ' this type. Delete or re-create those systems first.', 'error');
+          return;
+        }
+        if (confirm('Delete the "' + st.data.templates[type].label + '" system type?')) {
+          st.deleteTemplate(type); rerender();
+        }
+      });
+    });
+
     function saveRange(input, key) {
-      var tpl = st.data.templates[input.getAttribute('data-type')];
-      var t = tpl.samplePoints[Number(input.getAttribute('data-i'))].tests[Number(input.getAttribute('data-t'))];
-      t[key] = u.num(input.value);
-      st.save();
+      st.tplMutate(input.getAttribute('data-type'), function (tpl) {
+        tpl.samplePoints[Number(input.getAttribute('data-i'))].tests[Number(input.getAttribute('data-t'))][key] = u.num(input.value);
+      });
     }
     body.querySelectorAll('.tpl-min').forEach(function (inp) {
       inp.addEventListener('change', function () { saveRange(inp, 'min'); AA.ui.toast('Template range saved.'); });
@@ -151,18 +210,20 @@ AA.views.settings = function (root, params) {
     });
     body.querySelectorAll('.tpl-deltest').forEach(function (b) {
       b.addEventListener('click', function () {
-        var tpl = st.data.templates[b.getAttribute('data-type')];
-        tpl.samplePoints[Number(b.getAttribute('data-i'))].tests.splice(Number(b.getAttribute('data-t')), 1);
-        st.save(); rerender();
+        st.tplMutate(b.getAttribute('data-type'), function (tpl) {
+          tpl.samplePoints[Number(b.getAttribute('data-i'))].tests.splice(Number(b.getAttribute('data-t')), 1);
+        });
+        rerender();
       });
     });
     body.querySelectorAll('.tpl-addtest').forEach(function (b) {
       b.addEventListener('click', function () {
         var sel = body.querySelector('.tpl-test-sel[data-type="' + b.getAttribute('data-type') + '"][data-i="' + b.getAttribute('data-i') + '"]');
-        var tpl = st.data.templates[b.getAttribute('data-type')];
         var def = st.getTest(sel.value);
-        tpl.samplePoints[Number(b.getAttribute('data-i'))].tests.push({ testId: sel.value, min: def ? def.defaultMin : null, max: def ? def.defaultMax : null });
-        st.save(); rerender();
+        st.tplMutate(b.getAttribute('data-type'), function (tpl) {
+          tpl.samplePoints[Number(b.getAttribute('data-i'))].tests.push({ testId: sel.value, min: def ? def.defaultMin : null, max: def ? def.defaultMax : null });
+        });
+        rerender();
       });
     });
     body.querySelectorAll('.tpl-addpt').forEach(function (b) {
@@ -172,8 +233,10 @@ AA.views.settings = function (root, params) {
           bodyHTML: '<label class="f">Name<input name="name" required placeholder="e.g. Blowdown"></label>',
           submitLabel: 'Add',
           onSubmit: function (form, close) {
-            st.data.templates[b.getAttribute('data-type')].samplePoints.push({ name: form.elements.name.value.trim(), tests: [] });
-            st.save(); close(); rerender();
+            st.tplMutate(b.getAttribute('data-type'), function (tpl) {
+              tpl.samplePoints.push({ name: form.elements.name.value.trim(), tests: [] });
+            });
+            close(); rerender();
           }
         });
       });
@@ -185,8 +248,10 @@ AA.views.settings = function (root, params) {
           title: 'Rename Sample Point',
           bodyHTML: '<label class="f">Name<input name="name" required value="' + u.esc(sp.name) + '"></label>',
           onSubmit: function (form, close) {
-            sp.name = form.elements.name.value.trim();
-            st.save(); close(); rerender();
+            st.tplMutate(b.getAttribute('data-type'), function (tpl) {
+              tpl.samplePoints[Number(b.getAttribute('data-i'))].name = form.elements.name.value.trim();
+            });
+            close(); rerender();
           }
         });
       });
@@ -196,8 +261,10 @@ AA.views.settings = function (root, params) {
         var tpl = st.data.templates[b.getAttribute('data-type')];
         var sp = tpl.samplePoints[Number(b.getAttribute('data-i'))];
         if (confirm('Remove "' + sp.name + '" from the ' + tpl.label + ' template? Existing systems are unaffected.')) {
-          tpl.samplePoints.splice(Number(b.getAttribute('data-i')), 1);
-          st.save(); rerender();
+          st.tplMutate(b.getAttribute('data-type'), function (t) {
+            t.samplePoints.splice(Number(b.getAttribute('data-i')), 1);
+          });
+          rerender();
         }
       });
     });
@@ -207,7 +274,7 @@ AA.views.settings = function (root, params) {
   function renderProducts(body, rerender) {
     var html = '<div class="card"><div class="page-head" style="margin-bottom:8px"><div class="grow">' +
       '<h2 style="margin:0">Product catalog</h2>' +
-      '<p class="page-sub">Your treatment chemicals. Assign them to systems on each system’s page.</p></div>' +
+      '<p class="page-sub">Your treatment chemicals. Assign them to systems on each system’s page — with an optional stock unit and low-level alert for inventory tracking.</p></div>' +
       '<div class="actions"><button class="btn btn-primary btn-sm" id="add-product">+ New product</button></div></div>';
 
     if (!st.data.products.length) {
@@ -268,11 +335,13 @@ AA.views.settings = function (root, params) {
     body.innerHTML =
       '<div class="card"><h2>General</h2><div class="f-row">' +
       '<label class="f">Company name <span class="f-hint">(shown on service reports)</span><input id="set-company" value="' + u.esc(st.data.settings.companyName || '') + '"></label>' +
-      '<label class="f">Default representative<input id="set-rep" value="' + u.esc(st.data.settings.defaultRep || '') + '"></label>' +
+      '<label class="f">Default representative <span class="f-hint">(solo mode only — signed-in users are used automatically)</span><input id="set-rep" value="' + u.esc(st.data.settings.defaultRep || '') + '"></label>' +
       '</div><button class="btn btn-primary btn-sm" id="set-save">Save</button></div>' +
 
       '<div class="card"><h2>Backup & restore</h2>' +
-      '<p class="page-sub">Data lives in this browser (localStorage). Export regularly, and use export/import to move data between devices.</p>' +
+      '<p class="page-sub">' + (AA.env.server
+        ? 'Data lives on the AquaTrack server (data/store.json) and is shared by all signed-in users. Export a JSON snapshot any time; importing replaces the shared workspace for everyone.'
+        : 'Data lives in this browser (localStorage). Export regularly, and use export/import to move data between devices — or run the AquaTrack server (node server.js) for real multi-user sharing.') + '</p>' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
       '<button class="btn btn-ghost" id="data-export">⬇ Export JSON backup</button>' +
       '<label class="btn btn-ghost" style="margin:0">⬆ Import backup<input type="file" id="data-import" accept="application/json,.json" style="display:none"></label>' +
@@ -282,22 +351,19 @@ AA.views.settings = function (root, params) {
       '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
       '<button class="btn btn-ghost" id="data-demo">Load demo data</button>' +
       '<button class="btn btn-danger" id="data-reset">Reset everything</button>' +
-      '</div><p class="f-hint" style="margin-top:8px">Demo data replaces current data with three example sites so you can explore. Reset restores a blank workspace with the default test catalog and templates.</p></div>';
+      '</div><p class="f-hint" style="margin-top:8px">Demo data replaces current data with three example sites so you can explore. Reset restores a blank workspace with the default test catalog and templates.' +
+      (AA.env.server ? ' Both affect ALL users of this server.' : '') + '</p></div>';
 
     document.getElementById('set-save').addEventListener('click', function () {
-      st.data.settings.companyName = document.getElementById('set-company').value.trim();
-      st.data.settings.defaultRep = document.getElementById('set-rep').value.trim();
-      st.save();
+      st.setSettings({
+        companyName: document.getElementById('set-company').value.trim(),
+        defaultRep: document.getElementById('set-rep').value.trim()
+      });
       AA.ui.toast('Settings saved.', 'success');
     });
 
     document.getElementById('data-export').addEventListener('click', function () {
-      var blob = new Blob([st.exportJSON()], { type: 'application/json' });
-      var a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = 'aquatrack-backup-' + u.todayISO() + '.json';
-      a.click();
-      URL.revokeObjectURL(a.href);
+      u.download('aquatrack-backup-' + u.todayISO() + '.json', st.exportJSON(), 'application/json');
     });
 
     document.getElementById('data-import').addEventListener('change', function (e) {
@@ -306,7 +372,7 @@ AA.views.settings = function (root, params) {
       var reader = new FileReader();
       reader.onload = function () {
         try {
-          if (!confirm('Importing replaces ALL current data. Continue?')) return;
+          if (!confirm('Importing replaces ALL current data' + (AA.env.server ? ' for every user of this server' : '') + '. Continue?')) return;
           st.importJSON(reader.result);
           AA.ui.toast('Backup imported.', 'success');
           location.hash = '#/dashboard';
@@ -318,14 +384,14 @@ AA.views.settings = function (root, params) {
     });
 
     document.getElementById('data-demo').addEventListener('click', function () {
-      if (st.data.sites.length && !confirm('Loading demo data replaces your current data. Continue?')) return;
+      if (st.data.sites.length && !confirm('Loading demo data replaces your current data' + (AA.env.server ? ' for every user' : '') + '. Continue?')) return;
       st.replaceAll(AA.defaults.demoData());
       AA.ui.toast('Demo data loaded.', 'success');
       location.hash = '#/dashboard';
     });
 
     document.getElementById('data-reset').addEventListener('click', function () {
-      if (!confirm('Really delete ALL sites, systems, visits and customizations?')) return;
+      if (!confirm('Really delete ALL sites, systems, visits and customizations' + (AA.env.server ? ' for every user of this server' : '') + '?')) return;
       if (!confirm('Last check — this cannot be undone. Export a backup first?  Press OK to wipe everything.')) return;
       st.replaceAll(AA.defaults.blank());
       AA.ui.toast('Workspace reset.');

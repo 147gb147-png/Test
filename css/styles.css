@@ -100,7 +100,8 @@ h3 { font-size: 1rem; }
 
 /* ------------------------------------------------------------ stat tiles */
 .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
-@media (max-width: 900px) { .tiles { grid-template-columns: repeat(2, 1fr); } }
+.tiles-5 { grid-template-columns: repeat(5, 1fr); }
+@media (max-width: 1000px) { .tiles, .tiles-5 { grid-template-columns: repeat(2, 1fr); } }
 
 .tile {
   background: var(--surface);
@@ -156,6 +157,7 @@ table.data tr.rowlink:hover { background: var(--accent-wash); }
 .chip-high, .chip-low { background: rgba(208, 59, 59, 0.10); color: var(--critical); }
 .chip-none { background: rgba(11, 11, 11, 0.05); color: var(--muted); }
 .chip-type { background: var(--accent-wash); color: var(--accent-deep); }
+.chip-chronic { background: rgba(208, 59, 59, 0.9); color: #fff; }
 
 /* --------------------------------------------------------------- buttons */
 .btn {
@@ -364,6 +366,59 @@ body.modal-open { overflow: hidden; }
 .range-inputs input { width: 84px; padding: 5px 7px; font-size: .85rem; border: 1px solid var(--axis); border-radius: 6px; font-variant-numeric: tabular-nums; }
 
 .pill-row { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* -------------------------------------------------- filters & user chrome */
+.filter-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.fchip {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink-2);
+  border-radius: 999px;
+  padding: 5px 13px;
+  font-size: .82rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+}
+.fchip:hover { background: var(--accent-wash); color: var(--accent-deep); }
+.fchip.on { background: var(--accent-wash); color: var(--accent-deep); border-color: var(--accent); }
+.fcustom { display: inline-flex; align-items: center; gap: 4px; font-size: .84rem; color: var(--muted); }
+.fcustom input { padding: 4px 8px; border: 1px solid var(--axis); border-radius: 7px; font-family: inherit; font-size: .84rem; }
+.f-inline { display: inline-flex; align-items: center; gap: 8px; font-size: .84rem; font-weight: 600; color: var(--ink-2); }
+.f-inline select { padding: 6px 10px; border: 1px solid var(--axis); border-radius: 8px; font-family: inherit; font-size: .9rem; background: #fff; }
+
+.nav-user { display: flex; align-items: center; gap: 8px; margin-left: 8px; }
+.user-chip {
+  background: rgba(11, 11, 11, 0.05);
+  color: var(--ink-2);
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-size: .82rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------------ login */
+.login-wrap { display: flex; justify-content: center; padding: 48px 8px; }
+.login-card { width: 100%; max-width: 400px; padding: 26px; }
+.login-brand { font-size: 1.4rem; margin-bottom: 8px; }
+
+/* -------------------------------------------------------- trends grid */
+.mini-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+.mini-cell { border: 1px solid var(--hairline); border-radius: 8px; padding: 10px 12px; background: #fff; }
+.mini-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 4px; font-size: .88rem; }
+.mini-latest { white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+/* ------------------------------------------------------------- map legend */
+.map-legend { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 10px; font-size: .84rem; color: var(--ink-2); }
+.legend-item { display: inline-flex; align-items: center; gap: 6px; }
+.legend-dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; border: 2px solid var(--surface); box-shadow: 0 0 0 1px var(--border); }
 
 /* ----------------------------------------------------------------- print */
 @media print {

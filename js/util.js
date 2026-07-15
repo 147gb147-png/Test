@@ -1,4 +1,4 @@
-/* AquaTrack — shared utilities (DOM helpers, formatting, toasts, modals) */
+/* AquaTrack — shared utilities (DOM helpers, formatting, toasts, modals, filters) */
 window.AA = window.AA || {};
 
 AA.util = {
@@ -16,6 +16,11 @@ AA.util = {
 
   clone(obj) {
     return JSON.parse(JSON.stringify(obj));
+  },
+
+  slug(label) {
+    var s = String(label || '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+    return s || 'type';
   },
 
   fmtNum(v, decimals) {
@@ -49,6 +54,11 @@ AA.util = {
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   },
 
+  daysBetween(isoA, isoB) {
+    var a = new Date(isoA + 'T00:00:00'), b = new Date(isoB + 'T00:00:00');
+    return Math.round((b - a) / 86400000);
+  },
+
   /* Build one element from an HTML string */
   el(html) {
     var t = document.createElement('template');
@@ -69,6 +79,74 @@ AA.util = {
     if (v === '' || v == null) return null;
     var n = Number(v);
     return isNaN(n) ? null : n;
+  },
+
+  /* Trigger a client-side file download */
+  download(filename, text, mime) {
+    var blob = new Blob([text], { type: mime || 'text/plain' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  },
+
+  csvCell(v) {
+    var s = String(v == null ? '' : v);
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }
+};
+
+/* -------------------------------------------------- time-range filtering */
+AA.filters = {
+  PRESETS: [
+    ['30d', 'Last 30 days'], ['90d', 'Last 90 days'], ['6m', 'Last 6 months'],
+    ['12m', 'Last 12 months'], ['all', 'All time'], ['custom', 'Custom…']
+  ],
+
+  /* {from, to} ISO bounds (null = unbounded) for the current selection */
+  bounds() {
+    var tr = AA.state.timeRange;
+    if (tr.key === 'custom') return { from: tr.from || null, to: tr.to || null };
+    var days = { '30d': 30, '90d': 90, '6m': 182, '12m': 365 }[tr.key];
+    if (!days) return { from: null, to: null };
+    return { from: AA.util.daysAgoISO(days), to: null };
+  },
+
+  filterHistory(arr) {
+    var b = AA.filters.bounds();
+    return arr.filter(function (h) {
+      if (b.from && h.date < b.from) return false;
+      if (b.to && h.date > b.to) return false;
+      return true;
+    });
+  },
+
+  /* One filter row above the charts it scopes (chips + custom dates) */
+  rowHTML() {
+    var tr = AA.state.timeRange;
+    var html = '<div class="filter-row no-print">';
+    AA.filters.PRESETS.forEach(function (p) {
+      html += '<button type="button" class="fchip' + (tr.key === p[0] ? ' on' : '') + '" data-range="' + p[0] + '">' +
+        (tr.key === p[0] ? '✓ ' : '') + p[1] + '</button>';
+    });
+    html += '<span class="fcustom" style="' + (tr.key === 'custom' ? '' : 'display:none') + '">' +
+      '<input type="date" class="f-from" value="' + (tr.from || '') + '" aria-label="From date"> – ' +
+      '<input type="date" class="f-to" value="' + (tr.to || '') + '" aria-label="To date"></span>';
+    html += '</div>';
+    return html;
+  },
+
+  wireRow(container, onChange) {
+    container.querySelectorAll('.fchip').forEach(function (chip) {
+      chip.addEventListener('click', function () {
+        AA.state.timeRange.key = chip.getAttribute('data-range');
+        onChange();
+      });
+    });
+    var from = container.querySelector('.f-from'), to = container.querySelector('.f-to');
+    if (from) from.addEventListener('change', function () { AA.state.timeRange.from = from.value || null; onChange(); });
+    if (to) to.addEventListener('change', function () { AA.state.timeRange.to = to.value || null; onChange(); });
   }
 };
 
@@ -88,11 +166,7 @@ AA.ui = {
 
   /*
    * Open a modal containing a <form>. Options:
-   *   title        — heading
-   *   bodyHTML     — inner form fields (HTML string)
-   *   submitLabel  — submit button text (default 'Save'); null hides footer
-   *   onSubmit(form, close) — called on submit; call close() to dismiss
-   *   wide         — wider dialog
+   *   title, bodyHTML, submitLabel (null hides footer), onSubmit(form, close), wide
    * Returns { root, close }.
    */
   modal(opts) {
@@ -148,5 +222,9 @@ AA.ui = {
     if (flag === 'low') return '<span class="chip chip-low" title="Below expected range">▼ Low</span>';
     if (flag === 'ok') return '<span class="chip chip-ok" title="Within expected range">✓ OK</span>';
     return '<span class="chip chip-none" title="No range configured">—</span>';
+  },
+
+  chronicChip() {
+    return '<span class="chip chip-chronic" title="Out of range on 3+ consecutive readings — needs escalation">⟲ Chronic</span>';
   }
 };
