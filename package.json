@@ -1,0 +1,13 @@
+{
+  "name": "aquatrack",
+  "version": "2.2.0",
+  "private": true,
+  "description": "Water treatment field analytics — multi-user service reporting, trending and site mapping",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=16"
+  }
+}

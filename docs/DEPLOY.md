@@ -20,14 +20,23 @@ provides it automatically except the bare-VPS route, where Caddy adds it).
 
 ## Option A — Railway (easiest, ~$5/mo)
 
+> Volumes need Railway's Hobby plan — on the free trial the app runs, but
+> data is wiped on every redeploy, so attach the volume before real use.
+
 1. Push this repo to GitHub (already done if you're reading this there).
 2. At [railway.app](https://railway.app): **New Project → Deploy from GitHub
-   repo** → pick this repo. Railway detects the `Dockerfile` and builds it.
-3. In the service: **Settings → Networking → Generate Domain** — that's your
-   public HTTPS URL.
-4. **Add a volume** (right-click the service → *Attach Volume*), mount path:
-   `/app/data`.
-5. Redeploy. Done — visit the URL and create your admin account.
+   repo** → pick this repo. The included `railway.json` pins the build to
+   the `Dockerfile` and wires the `/api/health` check, so no build settings
+   are needed. (If you deployed an older commit, make sure Railway is
+   building the latest — older Dockerfiles crash-loop, see Troubleshooting.)
+3. **Attach a volume**: right-click the service → **Attach Volume** → mount
+   path **`/app/data`**. Railway redeploys automatically.
+4. **Settings → Networking → Generate Domain**. If it asks which port,
+   choose **8080** (or accept the suggested one).
+5. Open the URL and create your admin account.
+
+New pushes to the connected branch redeploy automatically; the volume (your
+data) is untouched by deploys.
 
 ## Option B — Fly.io (fast, generous free allowance)
 
@@ -83,6 +92,20 @@ sudo npm i -g pm2 && pm2 start server.js --name aquatrack && pm2 save
 ```
 
 ---
+
+## Troubleshooting
+
+| Symptom (deploy logs) | Cause & fix |
+|---|---|
+| `EACCES: permission denied, mkdir '/app/data'` (crash loop), or `FATAL: the data directory is not writable` | You're running an image built from code older than v2.2 whose Dockerfile ran as a non-root user that can't write the root-owned volume. **Pull/redeploy the latest commit** — the current Dockerfile runs as root and pre-creates `/app/data`. |
+| `Nixpacks/Railpack was unable to generate a build plan` | The builder ignored the Dockerfile. Latest code includes `railway.json` (pins `DOCKERFILE`) and a `package.json` with a `start` script, so either build path works. Redeploy the latest commit. |
+| “Application failed to respond” on the generated domain | The domain targets the wrong port — regenerate the domain and pick **8080**. Also confirm the deploy is green and `/api/health` returns `{"ok":true}` (open `https://your-domain/api/health`). |
+| Deploy is green but the login/setup page errors when saving | Almost always a data-dir write failure — check logs for `EACCES` (see first row), and that the volume is mounted at exactly `/app/data`. |
+| Data vanished after a redeploy | No volume was attached (Railway trial) or it's mounted at the wrong path. Attach a volume at `/app/data`; restore from Settings → Data → your JSON backup. |
+| Wrong branch deployed | Railway builds the repo's default branch by default — set the service's branch to the one with the app code (Service → Settings → Source). |
+
+Still stuck? Grab the **Deploy Logs** text from Railway and compare against
+the first column — the fatal line is always near the top of the crash.
 
 ## Backups
 

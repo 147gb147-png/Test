@@ -30,7 +30,20 @@ const SESSION_DAYS = 30;
 const HISTORY_KEEP = 25; // past doc versions kept in memory for 3-way write checks
 
 /* ------------------------------------------------------------ file store */
-if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+try {
+  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+  const probe = path.join(DATA_DIR, '.write-test');
+  fs.writeFileSync(probe, 'ok');
+  fs.unlinkSync(probe);
+} catch (e) {
+  console.error('FATAL: the data directory is not writable: ' + DATA_DIR);
+  console.error('       ' + e.message);
+  console.error('Fix: run the process as a user that can write this path (the provided');
+  console.error('Dockerfile runs as root for exactly this reason — rebuild from the latest');
+  console.error('code if you see this in a container), or point AQUATRACK_DATA at a');
+  console.error('writable directory.');
+  process.exit(1);
+}
 
 function readJSON(file, fallback) {
   try { return JSON.parse(fs.readFileSync(path.join(DATA_DIR, file), 'utf8')); }
