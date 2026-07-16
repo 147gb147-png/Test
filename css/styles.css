@@ -1,4 +1,4 @@
-/* AquaTrack — styles. Palette follows docs/DESIGN.md (validated reference palette). */
+/* FieldLab — styles. Palette follows docs/DESIGN.md (validated reference palette). */
 
 :root {
   --page: #f9f9f7;
@@ -167,7 +167,8 @@ table.data tr.rowlink:hover { background: var(--accent-wash); }
   white-space: nowrap;
 }
 .chip-ok { background: rgba(12, 163, 12, 0.10); color: var(--good-text); }
-.chip-high, .chip-low { background: rgba(208, 59, 59, 0.10); color: var(--critical); }
+.chip-high, .chip-low { background: rgba(236, 131, 90, 0.16); color: #9c4221; }
+.chip-crit { background: rgba(208, 59, 59, 0.14); color: var(--critical); font-weight: 700; }
 .chip-none { background: rgba(11, 11, 11, 0.05); color: var(--muted); }
 .chip-type { background: var(--accent-wash); color: var(--accent-deep); }
 .chip-chronic { background: rgba(208, 59, 59, 0.9); color: #fff; }
@@ -286,6 +287,7 @@ body.modal-open { overflow: hidden; }
 .chart-svg { width: 100%; height: auto; display: block; background: var(--surface); }
 .chart-svg text.tick { font-size: 11px; fill: var(--muted); font-variant-numeric: tabular-nums; font-family: inherit; }
 .chart-svg text.limit { font-size: 10.5px; fill: var(--muted); font-family: inherit; }
+.chart-svg text.limit-hard { fill: rgba(208, 59, 59, 0.85); }
 .chart-empty { color: var(--muted); padding: 30px 10px; text-align: center; font-size: .9rem; }
 .chart-tip {
   position: absolute;
@@ -334,7 +336,10 @@ body.modal-open { overflow: hidden; }
   border-radius: 7px;
   font-variant-numeric: tabular-nums;
 }
-.vp-test input.vt-input.out { border-color: var(--critical); background: rgba(208, 59, 59, 0.05); }
+.vp-test input.vt-input.out { border-color: #ec835a; background: rgba(236, 131, 90, 0.07); }
+.vp-test input.vt-input.out-crit { border-color: var(--critical); border-width: 2px; background: rgba(208, 59, 59, 0.07); }
+.ranges-input { width: 86px; padding: 5px 7px; font-size: .85rem; border: 1px solid var(--axis); border-radius: 6px; font-variant-numeric: tabular-nums; }
+.ranges-input:disabled { background: var(--page); color: var(--muted); }
 .vp-test .vt-unit { font-size: .74rem; color: var(--muted); white-space: nowrap; max-width: 76px; }
 .vt-comment-btn {
   border: 1px solid var(--border); background: none; border-radius: 7px;

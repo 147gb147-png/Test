@@ -1,4 +1,4 @@
-/* AquaTrack — visit data entry (the rep's on-site workflow) + visit report */
+/* FieldLab — visit data entry (the rep's on-site workflow) + visit report */
 window.AA = window.AA || {};
 AA.views = AA.views || {};
 
@@ -77,7 +77,9 @@ AA.views.visitForm = function (root, params, query, editVisit) {
             '<div class="vp-test" data-pt="' + pt.id + '" data-test="' + def.id + '">' +
             '<div class="vt-name"><span>' + u.esc(def.name) + '</span><span class="vt-range">' + u.esc(u.rangeText(range)) + '</span></div>' +
             '<div class="vt-row">' +
-            '<input class="vt-input" type="number" step="any" inputmode="decimal" value="' + val + '" data-min="' + (range.min != null ? range.min : '') + '" data-max="' + (range.max != null ? range.max : '') + '" aria-label="' + u.esc(def.name) + '">' +
+            '<input class="vt-input" type="number" step="any" inputmode="decimal" value="' + val + '"' +
+            ' data-low="' + (range.low != null ? range.low : '') + '" data-high="' + (range.high != null ? range.high : '') + '"' +
+            ' data-min="' + (range.min != null ? range.min : '') + '" data-max="' + (range.max != null ? range.max : '') + '" aria-label="' + u.esc(def.name) + '">' +
             (def.unit ? '<span class="vt-unit">' + u.esc(def.unit) + '</span>' : '') +
             '<button type="button" class="vt-comment-btn' + (comment ? ' has' : '') + '" title="Add a comment for the customer">💬</button>' +
             '</div>' +
@@ -101,7 +103,7 @@ AA.views.visitForm = function (root, params, query, editVisit) {
             '<div class="vt-name"><span>' + u.esc(p.name) + '</span>' +
             (ap.lowLevel != null ? '<span class="vt-range">low at ≤ ' + ap.lowLevel + '</span>' : '') + '</div>' +
             '<div class="vt-row">' +
-            '<input class="vt-input vt-level" type="number" step="any" inputmode="decimal" value="' + (lv && lv.level != null ? lv.level : '') + '" data-low="' + (ap.lowLevel != null ? ap.lowLevel : '') + '" aria-label="' + u.esc(p.name) + ' stock level">' +
+            '<input class="vt-input vt-level" type="number" step="any" inputmode="decimal" value="' + (lv && lv.level != null ? lv.level : '') + '" data-lowstock="' + (ap.lowLevel != null ? ap.lowLevel : '') + '" aria-label="' + u.esc(p.name) + ' stock level">' +
             '<span class="vt-unit">' + u.esc(ap.unit) + '</span>' +
             '</div><div class="vt-flag"></div></div>';
         });
@@ -126,16 +128,20 @@ AA.views.visitForm = function (root, params, query, editVisit) {
       var v = u.num(input.value);
       if (v == null) { flagEl.innerHTML = ''; input.classList.remove('out'); return; }
       if (input.classList.contains('vt-level')) {
-        var low = u.num(input.getAttribute('data-low'));
-        var isLow = low != null && v <= low;
-        flagEl.innerHTML = isLow ? '<span class="chip chip-low">▼ Low stock</span>' : (low != null ? AA.ui.flagChip('ok') : '');
+        var lowStock = u.num(input.getAttribute('data-lowstock'));
+        var isLow = lowStock != null && v <= lowStock;
+        flagEl.innerHTML = isLow ? '<span class="chip chip-low">▼ Low stock</span>' : (lowStock != null ? AA.ui.flagChip('ok') : '');
         input.classList.toggle('out', isLow);
         return;
       }
-      var range = { min: u.num(input.getAttribute('data-min')), max: u.num(input.getAttribute('data-max')) };
+      var range = {
+        low: u.num(input.getAttribute('data-low')), high: u.num(input.getAttribute('data-high')),
+        min: u.num(input.getAttribute('data-min')), max: u.num(input.getAttribute('data-max'))
+      };
       var f = st.evalFlag(v, range);
       flagEl.innerHTML = AA.ui.flagChip(f);
       input.classList.toggle('out', f === 'low' || f === 'high');
+      input.classList.toggle('out-crit', st.isCrit(f));
     }
 
     root.querySelectorAll('.vp-test').forEach(function (box) {

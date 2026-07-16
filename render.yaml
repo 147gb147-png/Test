@@ -1,9 +1,9 @@
-# Render.com blueprint for AquaTrack — see docs/DEPLOY.md
+# Render.com blueprint for FieldLab — see docs/DEPLOY.md
 # Note: the persistent disk requires a paid instance type (Starter);
 # free web services have ephemeral disks and would lose data on redeploy.
 services:
   - type: web
-    name: aquatrack
+    name: fieldlab
     runtime: node
     plan: starter
     buildCommand: ""
@@ -13,6 +13,6 @@ services:
       - key: PORT
         value: 8080
     disk:
-      name: aquatrack-data
+      name: fieldlab-data
       mountPath: /opt/render/project/src/data
       sizeGB: 1

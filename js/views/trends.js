@@ -1,4 +1,4 @@
-/* AquaTrack — trends grid: every test at every sample point of a system,
+/* FieldLab — trends grid: every test at every sample point of a system,
  * as small multiples with a shared time-range filter. */
 window.AA = window.AA || {};
 AA.views = AA.views || {};

@@ -1,8 +1,8 @@
 /*
- * AquaTrack — data layer.
+ * FieldLab — data layer.
  *
  * Two modes:
- *  - SERVER mode: the doc lives on the AquaTrack server (server.js). Saves are
+ *  - SERVER mode: the doc lives on the FieldLab server (server.js). Saves are
  *    versioned; concurrent edits by other reps are merged record-by-record
  *    (every record carries a _ts touched-at stamp, deletions are tombstoned).
  *    The client re-pulls periodically so everyone stays in sync.
@@ -16,7 +16,8 @@
 window.AA = window.AA || {};
 
 AA.store = (function () {
-  var KEY = 'aquatrack_v1';
+  var KEY = 'fieldlab_v1';
+  var OLD_KEY = 'aquatrack_v1'; /* pre-rename solo data — adopted on first load */
   var S = { data: null, mode: 'solo', version: 0 };
 
   var dirty = false, pushing = false, pushAgain = false, pushTimer = null, lastPull = 0;
@@ -25,10 +26,11 @@ AA.store = (function () {
   S.initSolo = function () {
     S.mode = 'solo';
     try {
-      var raw = localStorage.getItem(KEY);
+      var raw = localStorage.getItem(KEY) || localStorage.getItem(OLD_KEY);
       S.data = raw ? JSON.parse(raw) : AA.defaults.blank();
+      localStorage.removeItem(OLD_KEY);
     } catch (e) {
-      console.error('AquaTrack: failed to load saved data, starting fresh.', e);
+      console.error('FieldLab: failed to load saved data, starting fresh.', e);
       S.data = AA.defaults.blank();
     }
     S.migrate();
@@ -123,7 +125,7 @@ AA.store = (function () {
     var obj = JSON.parse(text); // caller handles parse errors
     var required = ['testDefs', 'templates', 'sites', 'systems', 'samplePoints', 'visits'];
     for (var i = 0; i < required.length; i++) {
-      if (!(required[i] in obj)) throw new Error('Not an AquaTrack backup: missing "' + required[i] + '"');
+      if (!(required[i] in obj)) throw new Error('Not an FieldLab backup: missing "' + required[i] + '"');
     }
     S.replaceAll(obj);
   };
@@ -158,6 +160,27 @@ AA.store = (function () {
         delete s.serviceIntervalDays;
       });
       d.version = 3;
+    }
+    if (d.version < 4) {
+      /* two-level -> four-level thresholds: the old single range becomes the
+       * EXPECTED range (low/high); absolute min/max limits start empty. */
+      d.testDefs.forEach(function (t) {
+        if (t.defaultLow === undefined) t.defaultLow = t.defaultMin != null ? t.defaultMin : null;
+        if (t.defaultHigh === undefined) t.defaultHigh = t.defaultMax != null ? t.defaultMax : null;
+        t.defaultMin = null;
+        t.defaultMax = null;
+      });
+      function upgradeEntry(t) {
+        if (t.low === undefined) t.low = t.min != null ? t.min : null;
+        if (t.high === undefined) t.high = t.max != null ? t.max : null;
+        t.min = null;
+        t.max = null;
+      }
+      d.samplePoints.forEach(function (sp) { sp.tests.forEach(upgradeEntry); });
+      Object.keys(d.templates).forEach(function (k) {
+        d.templates[k].samplePoints.forEach(function (sp) { sp.tests.forEach(upgradeEntry); });
+      });
+      d.version = 4;
     }
   };
 
@@ -393,12 +416,14 @@ AA.store = (function () {
     ts(p); S.save();
   };
 
-  S.setPointTestRange = function (pointId, testId, min, max) {
+  /* vals: {low, high, min, max} — null clears back to the test default */
+  S.setPointTestRange = function (pointId, testId, vals) {
     var p = S.getPoint(pointId);
     if (!p) return;
     var entry = p.tests.find(function (t) { return t.testId === testId; });
     if (!entry) return;
-    entry.min = min; entry.max = max;
+    entry.low = vals.low; entry.high = vals.high;
+    entry.min = vals.min; entry.max = vals.max;
     ts(p); S.save();
   };
 
@@ -440,23 +465,45 @@ AA.store = (function () {
     S.save();
   };
 
-  /* -------------------------------------------------------- ranges & flags */
+  /* -------------------------------------------------------- ranges & flags
+   * Four thresholds per test, all optional:
+   *   low / high — the EXPECTED range (▼ Low / ▲ High when crossed)
+   *   min / max  — ABSOLUTE limits, highest priority (‼ Below Min / ‼ Above Max)
+   * Each level resolves per sample point first, then the test default —
+   * which is what makes every threshold adjustable per individual site. */
   S.effRange = function (point, testId) {
-    var def = S.getTest(testId);
+    var def = S.getTest(testId) || {};
     var pt = point ? point.tests.find(function (t) { return t.testId === testId; }) : null;
+    function pick(ptVal, defVal) {
+      if (ptVal != null) return ptVal;
+      return defVal != null ? defVal : null;
+    }
     return {
-      min: pt && pt.min != null ? pt.min : (def && def.defaultMin != null ? def.defaultMin : null),
-      max: pt && pt.max != null ? pt.max : (def && def.defaultMax != null ? def.defaultMax : null)
+      low: pick(pt && pt.low, def.defaultLow),
+      high: pick(pt && pt.high, def.defaultHigh),
+      min: pick(pt && pt.min, def.defaultMin),
+      max: pick(pt && pt.max, def.defaultMax)
     };
   };
 
-  /* 'low' | 'high' | 'ok' | null (no value or no range) */
+  /* 'critLow' | 'critHigh' | 'low' | 'high' | 'ok' | null.
+   * Absolute limits are checked first — they are the highest priority. */
   S.evalFlag = function (value, range) {
     if (value == null || isNaN(value)) return null;
-    if (!range || (range.min == null && range.max == null)) return null;
-    if (range.min != null && value < range.min) return 'low';
-    if (range.max != null && value > range.max) return 'high';
+    if (!range || (range.low == null && range.high == null && range.min == null && range.max == null)) return null;
+    if (range.min != null && value < range.min) return 'critLow';
+    if (range.max != null && value > range.max) return 'critHigh';
+    if (range.low != null && value < range.low) return 'low';
+    if (range.high != null && value > range.high) return 'high';
     return 'ok';
+  };
+
+  S.isOut = function (flag) {
+    return flag === 'low' || flag === 'high' || flag === 'critLow' || flag === 'critHigh';
+  };
+
+  S.isCrit = function (flag) {
+    return flag === 'critLow' || flag === 'critHigh';
   };
 
   /* ---------------------------------------------------------------- visits */
@@ -491,15 +538,16 @@ AA.store = (function () {
 
   /* Count readings / flags in one visit (uses current ranges) */
   S.visitStats = function (visit) {
-    var n = 0, flagged = 0;
+    var n = 0, flagged = 0, crit = 0;
     visit.readings.forEach(function (r) {
       if (r.value == null) return;
       n++;
       var pt = S.getPoint(r.samplePointId);
       var f = S.evalFlag(r.value, S.effRange(pt, r.testId));
-      if (f === 'low' || f === 'high') flagged++;
+      if (S.isOut(f)) flagged++;
+      if (S.isCrit(f)) crit++;
     });
-    return { readings: n, flagged: flagged };
+    return { readings: n, flagged: flagged, crit: crit };
   };
 
   /* ------------------------------------------------------------- histories */
@@ -528,8 +576,7 @@ AA.store = (function () {
     var h = S.history(pointId, testId);
     var streak = 0;
     for (var i = h.length - 1; i >= 0; i--) {
-      var f = S.evalFlag(h[i].value, range);
-      if (f === 'low' || f === 'high') streak++;
+      if (S.isOut(S.evalFlag(h[i].value, range))) streak++;
       else break;
     }
     return streak;
@@ -550,17 +597,20 @@ AA.store = (function () {
         if (!last) return;
         var range = S.effRange(pt, t.testId);
         var flag = S.evalFlag(last.value, range);
-        if (flag === 'low' || flag === 'high') {
+        if (S.isOut(flag)) {
           items.push({
             site: site, system: sys, point: pt,
             test: S.getTest(t.testId), range: range,
             value: last.value, date: last.date, comment: last.comment, flag: flag,
+            crit: S.isCrit(flag),
             streak: S.outOfRangeStreak(pt.id, t.testId)
           });
         }
       });
     });
+    /* absolute-limit violations first, then chronic, then newest */
     items.sort(function (a, b) {
+      if (a.crit !== b.crit) return a.crit ? -1 : 1;
       if ((b.streak >= 3) !== (a.streak >= 3)) return (b.streak >= 3) ? 1 : -1;
       return a.date < b.date ? 1 : a.date > b.date ? -1 : 0;
     });
@@ -704,6 +754,7 @@ AA.store = (function () {
         if (f === null) return;
         total++;
         if (f === 'ok') ok++;
+        /* both expected-range and absolute-limit violations count against the KPI */
       });
     });
     return total ? { pct: Math.round(100 * ok / total), total: total } : null;

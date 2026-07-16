@@ -1,4 +1,4 @@
-/* AquaTrack — bootstrap, auth flow, hash router, background sync */
+/* FieldLab — bootstrap, auth flow, hash router, background sync */
 window.AA = window.AA || {};
 
 AA.app = (function () {
@@ -8,6 +8,7 @@ AA.app = (function () {
     [/^sites$/, 'sites', 'sites'],
     [/^site\/([^/]+)$/, 'site', 'sites'],
     [/^system\/([^/]+)$/, 'system', 'sites'],
+    [/^ranges\/([^/]+)$/, 'ranges', 'sites'],
     [/^trends\/([^/]+)$/, 'trends', 'sites'],
     [/^history\/([^/]+)\/([^/]+)$/, 'history', 'sites'],
     [/^visit\/new$/, 'visitNew', 'visit'],
@@ -88,7 +89,7 @@ AA.app = (function () {
       (AA.auth.user && AA.auth.user.role === 'admin') ? '' : 'none';
 
     if (!AA.env.server) {
-      host.innerHTML = '<span class="user-chip" title="No AquaTrack server reachable — data is saved on this device only. Run: node server.js">Solo mode</span>';
+      host.innerHTML = '<span class="user-chip" title="No FieldLab server reachable — data is saved on this device only. Run: node server.js">Solo mode</span>';
       return;
     }
     if (!AA.auth.user) { host.innerHTML = ''; return; }

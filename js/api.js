@@ -1,11 +1,12 @@
-/* AquaTrack — client API for the AquaTrack server (see server.js). */
+/* FieldLab — client API for the FieldLab server (see server.js). */
 window.AA = window.AA || {};
 
 AA.api = (function () {
-  var TOKEN_KEY = 'aquatrack_token';
+  var TOKEN_KEY = 'fieldlab_token';
 
   var api = {
-    token: localStorage.getItem(TOKEN_KEY) || null,
+    /* fall back to the pre-rename token key so nobody gets signed out */
+    token: localStorage.getItem(TOKEN_KEY) || localStorage.getItem('aquatrack_token') || null,
 
     setToken: function (t) {
       api.token = t;
@@ -51,7 +52,7 @@ AA.api = (function () {
 
 /* Auth + shared UI state */
 AA.auth = { user: null };           /* {id,name,username,role} in server mode; null in solo */
-AA.env = { server: false };         /* true when the AquaTrack server is reachable */
+AA.env = { server: false };         /* true when the FieldLab server is reachable */
 AA.state = {
   timeRange: { key: 'all', from: null, to: null },  /* trend/history window */
   repFilter: 'all'                                  /* admin dashboard rep filter */

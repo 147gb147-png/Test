@@ -1,4 +1,4 @@
-# AquaTrack server data (accounts, sessions, shared store) — never commit
+# FieldLab server data (accounts, sessions, shared store) — never commit
 data/
 
 node_modules/

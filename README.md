@@ -1,4 +1,4 @@
-# AquaTrack 💧
+# FieldLab 💧
 
 A multi-user web app for **water treatment field service data** — inspired by
 AquaAnalytics-style service reporting platforms. Reps record test results
@@ -14,7 +14,7 @@ Requires only Node.js ≥ 16 — **no npm install, zero dependencies**.
 
 ```bash
 node server.js
-# → AquaTrack server running at http://localhost:8080
+# → FieldLab server running at http://localhost:8080
 ```
 
 Open it in a browser: the first visit walks you through creating the **admin
@@ -29,7 +29,7 @@ built-in JSON export or by copying the folder).
 
 ```bash
 PORT=3000 node server.js            # custom port
-AQUATRACK_DATA=/srv/aqua node server.js   # custom data directory
+FIELDLAB_DATA=/srv/fieldlab node server.js   # custom data directory
 ```
 
 > For team use across a shop, run it on any always-on machine (office PC,
@@ -47,7 +47,7 @@ endpoint for platform health checks.
 ### Solo mode (no server)
 
 Opening `index.html` directly (or via any static file server) still works —
-the app detects there's no AquaTrack server and falls back to single-user
+the app detects there's no FieldLab server and falls back to single-user
 **solo mode** with browser localStorage, exactly like v1. Great for trying it
 out; the Settings → Data tab explains the difference.
 
@@ -60,7 +60,9 @@ example sites with 14 weeks of history, or go straight to **Sites → Add Site**
 |---|---|---|
 | Sites | only sites assigned to them (new sites they create are auto-assigned to them) | all sites, filterable by rep |
 | Visits / reports | record & edit at their sites; visits filed under their name automatically | everything, plus per-rep drill-down (`Admin → rep`) |
-| Customization (tests, templates, products) | yes — shared catalog | yes |
+| Test catalog (create/edit tests) | view only | yes |
+| Per-site test thresholds | yes — own sites | yes |
+| Templates & products | yes — shared | yes |
 | Users, site assignment, backup/restore/reset | — | yes |
 
 Scoping is enforced **server-side**: a rep's save that touches another rep's
@@ -122,16 +124,25 @@ Site (customer, address, map pin, assigned rep, visit frequency)
 - **Create your own system types** (Settings → System templates): chillers,
   RO units, softeners, waste streams — name it, add sample points, pick tests
   and expected ranges; it immediately appears in every site's "Add system" list.
-- Expected ranges at three levels: test default → template → per-sample-point
-  override. History is always evaluated against the current range.
-- Test catalog, templates, and product catalog all fully editable.
+- **Four thresholds per test**: an expected **Low/High** range (flags ▼ Low /
+  ▲ High in orange) plus absolute **Min/Max** limits with highest priority
+  (flag ‼ Below Min / ‼ Above Max in red, sorted to the top of action items,
+  drawn as red limit lines on charts). All four resolve test default →
+  template → per-sample-point override.
+- **Per-site ranges**: every site has a 🎯 **Test ranges** page showing every
+  threshold for every test at that site in one editable table — so site 1 can
+  run pH 7.5–9.0 while site 2 runs 8.0–8.8. Reps adjust ranges for their own
+  sites; changes re-flag history immediately.
+- **Admin-only test catalog**: only admins create/edit/delete tests (enforced
+  server-side); any account tunes the thresholds at its own sites.
+- Templates and the product catalog remain editable by the whole team.
 
 ## Where the data lives
 
 - **Server mode**: `data/store.json` (shared workspace), `data/users.json`
   (accounts), `data/sessions.json` (logins) — all in the server's data
   directory, never committed. JSON export/import in Settings → Data.
-- **Solo mode**: browser localStorage (`aquatrack_v1`), same export/import.
+- **Solo mode**: browser localStorage (`fieldlab_v1`), same export/import.
 
 ## Project layout
 

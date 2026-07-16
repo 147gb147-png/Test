@@ -1,4 +1,4 @@
-/* AquaTrack — shared utilities (DOM helpers, formatting, toasts, modals, filters) */
+/* FieldLab — shared utilities (DOM helpers, formatting, toasts, modals, filters) */
 window.AA = window.AA || {};
 
 AA.util = {
@@ -66,12 +66,21 @@ AA.util = {
     return t.content.firstElementChild;
   },
 
-  /* Describe a range like '20 – 60', '≥ 20', '≤ 60' or 'no range' */
+  /* Describe a 4-level range: expected low/high plus absolute min/max limits.
+   * e.g. '20 – 60 · limits ≥10 ≤80', '≥ 20', 'limits ≤80', 'no range set' */
   rangeText(range) {
-    if (!range || (range.min == null && range.max == null)) return 'no range set';
-    if (range.min != null && range.max != null) return range.min + ' – ' + range.max;
-    if (range.min != null) return '≥ ' + range.min;
-    return '≤ ' + range.max;
+    if (!range) return 'no range set';
+    var exp = '';
+    if (range.low != null && range.high != null) exp = range.low + ' – ' + range.high;
+    else if (range.low != null) exp = '≥ ' + range.low;
+    else if (range.high != null) exp = '≤ ' + range.high;
+    var hard = '';
+    if (range.min != null || range.max != null) {
+      hard = 'limits ' + [range.min != null ? '≥' + range.min : '', range.max != null ? '≤' + range.max : '']
+        .filter(Boolean).join(' ');
+    }
+    if (!exp && !hard) return 'no range set';
+    return [exp, hard].filter(Boolean).join(' · ');
   },
 
   /* Parse a numeric input value; '' -> null */
@@ -216,8 +225,12 @@ AA.ui = {
     return { root: root, close: close };
   },
 
-  /* Flag chip HTML — icon + text so state never rides on color alone */
+  /* Flag chip HTML — icon + text so state never rides on color alone.
+   * Expected-range violations are orange; absolute-limit violations are red
+   * and highest priority. */
   flagChip(flag) {
+    if (flag === 'critHigh') return '<span class="chip chip-crit" title="Above the ABSOLUTE maximum — highest priority">‼ Above Max</span>';
+    if (flag === 'critLow') return '<span class="chip chip-crit" title="Below the ABSOLUTE minimum — highest priority">‼ Below Min</span>';
     if (flag === 'high') return '<span class="chip chip-high" title="Above expected range">▲ High</span>';
     if (flag === 'low') return '<span class="chip chip-low" title="Below expected range">▼ Low</span>';
     if (flag === 'ok') return '<span class="chip chip-ok" title="Within expected range">✓ OK</span>';

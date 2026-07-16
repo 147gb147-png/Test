@@ -1,5 +1,5 @@
 /*
- * AquaTrack — SVG trend chart for a single test at a single sample point.
+ * FieldLab — SVG trend chart for a single test at a single sample point.
  *
  * Design notes (see docs/DESIGN.md):
  *  - single series -> no legend; the page heading names what is plotted
@@ -14,9 +14,11 @@ window.AA = window.AA || {};
 AA.chart = (function () {
   var C = {
     line: '#2a78d6',      /* series blue */
-    flag: '#d03b3b',      /* status critical — out-of-range marks only */
-    band: 'rgba(12,163,12,0.08)',   /* status good as a wash for the in-range zone */
+    warn: '#ec835a',      /* status serious — outside the EXPECTED range */
+    flag: '#d03b3b',      /* status critical — outside the ABSOLUTE limits */
+    band: 'rgba(12,163,12,0.08)',   /* status good as a wash for the expected zone */
     bandEdge: 'rgba(12,163,12,0.45)',
+    hardEdge: 'rgba(208,59,59,0.55)',
     grid: '#e1e0d9',
     axis: '#c3c2b7',
     muted: '#898781',
@@ -52,7 +54,7 @@ AA.chart = (function () {
       return;
     }
 
-    var range = opts.range || { min: null, max: null };
+    var range = opts.range || { low: null, high: null, min: null, max: null };
 
     /* ---- scales ---- */
     var t0 = new Date(pts[0].date + 'T00:00:00').getTime();
@@ -61,12 +63,12 @@ AA.chart = (function () {
 
     var vals = pts.map(function (p) { return p.value; });
     var lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals);
-    if (range.min != null) lo = Math.min(lo, range.min);
-    if (range.max != null) hi = Math.max(hi, range.max);
+    [range.low, range.min].forEach(function (b) { if (b != null) lo = Math.min(lo, b); });
+    [range.high, range.max].forEach(function (b) { if (b != null) hi = Math.max(hi, b); });
     if (lo === hi) { lo -= 1; hi += 1; }
     var padV = (hi - lo) * 0.12;
     lo -= padV; hi += padV;
-    if (lo < 0 && Math.min.apply(null, vals) >= 0 && (range.min == null || range.min >= 0)) lo = 0;
+    if (lo < 0 && Math.min.apply(null, vals) >= 0 && (range.low == null || range.low >= 0) && (range.min == null || range.min >= 0)) lo = 0;
 
     var iw = W - PAD.l - PAD.r, ih = H - PAD.t - PAD.b;
     function x(t) { return PAD.l + (t - t0) / (t1 - t0) * iw; }
@@ -101,18 +103,28 @@ AA.chart = (function () {
     });
 
     /* expected-range band (drawn above grid, below data) */
-    var bandTop = range.max != null ? y(Math.min(range.max, hi)) : PAD.t;
-    var bandBot = range.min != null ? y(Math.max(range.min, lo)) : H - PAD.b;
-    if (range.min != null || range.max != null) {
+    var bandTop = range.high != null ? y(Math.min(range.high, hi)) : PAD.t;
+    var bandBot = range.low != null ? y(Math.max(range.low, lo)) : H - PAD.b;
+    if (range.low != null || range.high != null) {
       s += '<rect x="' + PAD.l + '" y="' + bandTop + '" width="' + iw + '" height="' + Math.max(0, bandBot - bandTop) + '" fill="' + C.band + '"/>';
-      if (range.max != null) {
-        s += '<line x1="' + PAD.l + '" y1="' + y(range.max) + '" x2="' + (W - PAD.r) + '" y2="' + y(range.max) + '" stroke="' + C.bandEdge + '" stroke-width="1"/>';
-        s += '<text x="' + (W - PAD.r - 4) + '" y="' + (y(range.max) - 5) + '" text-anchor="end" class="limit">Max ' + AA.util.fmtNum(range.max, opts.decimals) + '</text>';
+      if (range.high != null) {
+        s += '<line x1="' + PAD.l + '" y1="' + y(range.high) + '" x2="' + (W - PAD.r) + '" y2="' + y(range.high) + '" stroke="' + C.bandEdge + '" stroke-width="1"/>';
+        s += '<text x="' + (W - PAD.r - 4) + '" y="' + (y(range.high) - 5) + '" text-anchor="end" class="limit">High ' + AA.util.fmtNum(range.high, opts.decimals) + '</text>';
       }
-      if (range.min != null) {
-        s += '<line x1="' + PAD.l + '" y1="' + y(range.min) + '" x2="' + (W - PAD.r) + '" y2="' + y(range.min) + '" stroke="' + C.bandEdge + '" stroke-width="1"/>';
-        s += '<text x="' + (W - PAD.r - 4) + '" y="' + (y(range.min) + 13) + '" text-anchor="end" class="limit">Min ' + AA.util.fmtNum(range.min, opts.decimals) + '</text>';
+      if (range.low != null) {
+        s += '<line x1="' + PAD.l + '" y1="' + y(range.low) + '" x2="' + (W - PAD.r) + '" y2="' + y(range.low) + '" stroke="' + C.bandEdge + '" stroke-width="1"/>';
+        s += '<text x="' + (W - PAD.r - 4) + '" y="' + (y(range.low) + 13) + '" text-anchor="end" class="limit">Low ' + AA.util.fmtNum(range.low, opts.decimals) + '</text>';
       }
+    }
+
+    /* absolute limits — highest priority, drawn in critical red */
+    if (range.max != null) {
+      s += '<line x1="' + PAD.l + '" y1="' + y(range.max) + '" x2="' + (W - PAD.r) + '" y2="' + y(range.max) + '" stroke="' + C.hardEdge + '" stroke-width="1"/>';
+      s += '<text x="' + (PAD.l + 4) + '" y="' + (y(range.max) - 5) + '" class="limit limit-hard">Max ' + AA.util.fmtNum(range.max, opts.decimals) + '</text>';
+    }
+    if (range.min != null) {
+      s += '<line x1="' + PAD.l + '" y1="' + y(range.min) + '" x2="' + (W - PAD.r) + '" y2="' + y(range.min) + '" stroke="' + C.hardEdge + '" stroke-width="1"/>';
+      s += '<text x="' + (PAD.l + 4) + '" y="' + (y(range.min) + 13) + '" class="limit limit-hard">Min ' + AA.util.fmtNum(range.min, opts.decimals) + '</text>';
     }
 
     /* baseline + x labels */
@@ -132,16 +144,19 @@ AA.chart = (function () {
       s += '<path d="' + dPath + '" fill="none" stroke="' + C.line + '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
     }
 
-    /* markers: circle = in range / no range; triangles = out of range */
+    /* markers: circle = in range; triangles = out of expected range (orange);
+     * larger red triangles = outside the absolute limits */
+    function tri(px, py, up, size, fill) {
+      var a = up ? -(size + 1) : (size + 1), b = up ? (size - 1) : -(size - 1);
+      return '<path d="M' + px + ' ' + (py + a) + ' L' + (px + size) + ' ' + (py + b) + ' L' + (px - size) + ' ' + (py + b) + ' Z" fill="' + fill + '" stroke="' + C.surface + '" stroke-width="2"/>';
+    }
     P.forEach(function (p) {
       var f = p.d.flag;
-      if (f === 'high') {
-        s += '<path d="M' + p.x + ' ' + (p.y - 5.5) + ' L' + (p.x + 5.5) + ' ' + (p.y + 4.5) + ' L' + (p.x - 5.5) + ' ' + (p.y + 4.5) + ' Z" fill="' + C.flag + '" stroke="' + C.surface + '" stroke-width="2"/>';
-      } else if (f === 'low') {
-        s += '<path d="M' + p.x + ' ' + (p.y + 5.5) + ' L' + (p.x + 5.5) + ' ' + (p.y - 4.5) + ' L' + (p.x - 5.5) + ' ' + (p.y - 4.5) + ' Z" fill="' + C.flag + '" stroke="' + C.surface + '" stroke-width="2"/>';
-      } else {
-        s += '<circle cx="' + p.x + '" cy="' + p.y + '" r="4" fill="' + C.line + '" stroke="' + C.surface + '" stroke-width="2"/>';
-      }
+      if (f === 'critHigh') s += tri(p.x, p.y, true, 7, C.flag);
+      else if (f === 'critLow') s += tri(p.x, p.y, false, 7, C.flag);
+      else if (f === 'high') s += tri(p.x, p.y, true, 5.5, C.warn);
+      else if (f === 'low') s += tri(p.x, p.y, false, 5.5, C.warn);
+      else s += '<circle cx="' + p.x + '" cy="' + p.y + '" r="4" fill="' + C.line + '" stroke="' + C.surface + '" stroke-width="2"/>';
     });
 
     s += '</svg>';
@@ -171,8 +186,10 @@ AA.chart = (function () {
 
       var status = document.createElement('div');
       status.className = 'tip-status';
-      if (p.d.flag === 'high') { status.textContent = '▲ High — above max'; status.classList.add('bad'); }
-      else if (p.d.flag === 'low') { status.textContent = '▼ Low — below min'; status.classList.add('bad'); }
+      if (p.d.flag === 'critHigh') { status.textContent = '‼ Above the ABSOLUTE max'; status.classList.add('bad'); }
+      else if (p.d.flag === 'critLow') { status.textContent = '‼ Below the ABSOLUTE min'; status.classList.add('bad'); }
+      else if (p.d.flag === 'high') { status.textContent = '▲ High — above expected range'; status.classList.add('bad'); }
+      else if (p.d.flag === 'low') { status.textContent = '▼ Low — below expected range'; status.classList.add('bad'); }
       else if (p.d.flag === 'ok') { status.textContent = '✓ Within expected range'; }
       else { status.textContent = 'No range configured'; }
       tip.appendChild(status);

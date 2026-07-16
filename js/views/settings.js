@@ -1,4 +1,4 @@
-/* AquaTrack — Settings: test catalog, system templates (incl. custom system
+/* FieldLab — Settings: test catalog, system templates (incl. custom system
  * types), products, data & general */
 window.AA = window.AA || {};
 AA.views = AA.views || {};
@@ -19,7 +19,7 @@ AA.views.settings = function (root, params) {
 
   var html =
     '<div class="page-head"><div class="grow"><h1>Settings</h1>' +
-    '<p class="page-sub">Customize AquaTrack — your tests, expected ranges, system types and product line</p></div></div>' +
+    '<p class="page-sub">Customize FieldLab — your tests, expected ranges, system types and product line</p></div></div>' +
     '<div class="settings-tabs">' + tabs.map(function (t) {
       return '<a href="#/settings/' + t[0] + '" class="' + (tab === t[0] ? 'active' : '') + '">' + t[1] + '</a>';
     }).join('') + '</div><div id="settings-body"></div>';
@@ -35,28 +35,34 @@ AA.views.settings = function (root, params) {
 
   /* ------------------------------------------------------------- tests tab */
   function renderTests(body, rerender) {
+    var canEditTests = isAdmin; /* only admins manage the shared test catalog */
     var html = '<div class="card"><div class="page-head" style="margin-bottom:8px"><div class="grow">' +
       '<h2 style="margin:0">Test catalog</h2>' +
-      '<p class="page-sub">Every test reps can perform. Default ranges apply wherever a sample point has no specific override.</p></div>' +
-      '<div class="actions"><button class="btn btn-primary btn-sm" id="add-test">+ New test</button></div></div>' +
+      '<p class="page-sub">Every test reps can perform. Default thresholds apply wherever a sample point has no site-specific override' +
+      (canEditTests ? '.' : '. <strong>Only admins can change this catalog</strong> — but you can adjust every threshold for your own sites from each site’s 🎯 Test ranges page.') + '</p></div>' +
+      (canEditTests ? '<div class="actions"><button class="btn btn-primary btn-sm" id="add-test">+ New test</button></div>' : '') + '</div>' +
       '<div class="table-wrap"><table class="data"><thead><tr>' +
-      '<th>Test</th><th>Unit</th><th class="num">Decimals</th><th>Default range</th><th>Description</th><th></th></tr></thead><tbody>';
+      '<th>Test</th><th>Unit</th><th class="num">Decimals</th><th>Default expected</th><th>Absolute limits</th><th>Description</th>' + (canEditTests ? '<th></th>' : '') + '</tr></thead><tbody>';
 
     st.data.testDefs.forEach(function (t) {
       html += '<tr><td><strong>' + u.esc(t.name) + '</strong></td>' +
         '<td class="td-sub">' + (u.esc(t.unit) || '—') + '</td>' +
         '<td class="num">' + (t.decimals != null ? t.decimals : 1) + '</td>' +
-        '<td class="td-sub">' + u.esc(u.rangeText({ min: t.defaultMin, max: t.defaultMax })) + '</td>' +
+        '<td class="td-sub">' + u.esc(u.rangeText({ low: t.defaultLow, high: t.defaultHigh })) + '</td>' +
+        '<td class="td-sub">' + ((t.defaultMin != null || t.defaultMax != null)
+          ? u.esc([t.defaultMin != null ? '≥' + t.defaultMin : '', t.defaultMax != null ? '≤' + t.defaultMax : ''].filter(Boolean).join(' '))
+          : '—') + '</td>' +
         '<td class="td-sub">' + (u.esc(t.description) || '') + '</td>' +
-        '<td class="num" style="white-space:nowrap">' +
+        (canEditTests ? '<td class="num" style="white-space:nowrap">' +
         '<button class="btn btn-ghost btn-sm test-edit" data-id="' + u.esc(t.id) + '">Edit</button> ' +
-        '<button class="btn btn-danger btn-sm test-del" data-id="' + u.esc(t.id) + '">Delete</button></td></tr>';
+        '<button class="btn btn-danger btn-sm test-del" data-id="' + u.esc(t.id) + '">Delete</button></td>' : '') + '</tr>';
     });
     html += '</tbody></table></div></div>';
     body.innerHTML = html;
+    if (!canEditTests) return;
 
     function testModal(existing) {
-      var t = existing || { name: '', unit: '', decimals: 1, defaultMin: null, defaultMax: null, description: '' };
+      var t = existing || { name: '', unit: '', decimals: 1, defaultLow: null, defaultHigh: null, defaultMin: null, defaultMax: null, description: '' };
       AA.ui.modal({
         title: existing ? 'Edit Test' : 'New Test',
         bodyHTML:
@@ -66,9 +72,14 @@ AA.views.settings = function (root, params) {
           '<label class="f">Decimals shown<input name="decimals" type="number" min="0" max="4" value="' + (t.decimals != null ? t.decimals : 1) + '"></label>' +
           '</div>' +
           '<div class="f-row">' +
-          '<label class="f">Default min <span class="f-hint">(optional)</span><input name="defaultMin" type="number" step="any" value="' + (t.defaultMin != null ? t.defaultMin : '') + '"></label>' +
-          '<label class="f">Default max <span class="f-hint">(optional)</span><input name="defaultMax" type="number" step="any" value="' + (t.defaultMax != null ? t.defaultMax : '') + '"></label>' +
+          '<label class="f">Default expected low<input name="defaultLow" type="number" step="any" value="' + (t.defaultLow != null ? t.defaultLow : '') + '"></label>' +
+          '<label class="f">Default expected high<input name="defaultHigh" type="number" step="any" value="' + (t.defaultHigh != null ? t.defaultHigh : '') + '"></label>' +
           '</div>' +
+          '<div class="f-row">' +
+          '<label class="f">Default absolute min <span class="f-hint">(hard limit)</span><input name="defaultMin" type="number" step="any" value="' + (t.defaultMin != null ? t.defaultMin : '') + '"></label>' +
+          '<label class="f">Default absolute max <span class="f-hint">(hard limit)</span><input name="defaultMax" type="number" step="any" value="' + (t.defaultMax != null ? t.defaultMax : '') + '"></label>' +
+          '</div>' +
+          '<p class="f-hint">Expected low/high flag ▼/▲; absolute min/max flag ‼ with highest priority. Every value can be overridden per site.</p>' +
           '<label class="f">Description<textarea name="description">' + u.esc(t.description || '') + '</textarea></label>',
         onSubmit: function (form, close) {
           var f = form.elements;
@@ -76,6 +87,8 @@ AA.views.settings = function (root, params) {
             name: f.name.value.trim(),
             unit: f.unit.value.trim(),
             decimals: Math.max(0, Math.min(4, Number(f.decimals.value) || 0)),
+            defaultLow: u.num(f.defaultLow.value),
+            defaultHigh: u.num(f.defaultHigh.value),
             defaultMin: u.num(f.defaultMin.value),
             defaultMax: u.num(f.defaultMax.value),
             description: f.description.value.trim()
@@ -124,13 +137,16 @@ AA.views.settings = function (root, params) {
         html += '<div class="tpl-point"><h4><span class="grow">🧪 ' + u.esc(sp.name) + '</span>' +
           '<button class="btn btn-ghost btn-sm tpl-rename" data-type="' + u.esc(type) + '" data-i="' + spi + '">Rename</button>' +
           '<button class="btn btn-danger btn-sm tpl-delpt" data-type="' + u.esc(type) + '" data-i="' + spi + '">Delete</button></h4>';
-        html += '<div class="table-wrap"><table class="data"><thead><tr><th>Test</th><th>Expected min</th><th>Expected max</th><th></th></tr></thead><tbody>';
+        html += '<div class="table-wrap"><table class="data"><thead><tr><th>Test</th><th>Expected low</th><th>Expected high</th><th>Abs. min</th><th>Abs. max</th><th></th></tr></thead><tbody>';
         sp.tests.forEach(function (t, ti) {
           var def = st.getTest(t.testId);
           if (!def) return;
+          function rcell(field, defVal) {
+            return '<td><div class="range-inputs"><input type="number" step="any" class="tpl-rng" data-field="' + field + '" data-type="' + u.esc(type) + '" data-i="' + spi + '" data-t="' + ti + '" value="' + (t[field] != null ? t[field] : '') + '" placeholder="' + (defVal != null ? defVal : '—') + '"></div></td>';
+          }
           html += '<tr><td>' + u.esc(def.name) + (def.unit ? ' <span class="td-sub">' + u.esc(def.unit) + '</span>' : '') + '</td>' +
-            '<td><div class="range-inputs"><input type="number" step="any" class="tpl-min" data-type="' + u.esc(type) + '" data-i="' + spi + '" data-t="' + ti + '" value="' + (t.min != null ? t.min : '') + '" placeholder="' + (def.defaultMin != null ? def.defaultMin : '—') + '"></div></td>' +
-            '<td><div class="range-inputs"><input type="number" step="any" class="tpl-max" data-type="' + u.esc(type) + '" data-i="' + spi + '" data-t="' + ti + '" value="' + (t.max != null ? t.max : '') + '" placeholder="' + (def.defaultMax != null ? def.defaultMax : '—') + '"></div></td>' +
+            rcell('low', def.defaultLow) + rcell('high', def.defaultHigh) +
+            rcell('min', def.defaultMin) + rcell('max', def.defaultMax) +
             '<td class="num"><button class="btn btn-ghost btn-sm tpl-deltest" data-type="' + u.esc(type) + '" data-i="' + spi + '" data-t="' + ti + '">remove</button></td></tr>';
         });
         html += '</tbody></table></div>';
@@ -197,16 +213,13 @@ AA.views.settings = function (root, params) {
       });
     });
 
-    function saveRange(input, key) {
-      st.tplMutate(input.getAttribute('data-type'), function (tpl) {
-        tpl.samplePoints[Number(input.getAttribute('data-i'))].tests[Number(input.getAttribute('data-t'))][key] = u.num(input.value);
+    body.querySelectorAll('.tpl-rng').forEach(function (inp) {
+      inp.addEventListener('change', function () {
+        st.tplMutate(inp.getAttribute('data-type'), function (tpl) {
+          tpl.samplePoints[Number(inp.getAttribute('data-i'))].tests[Number(inp.getAttribute('data-t'))][inp.getAttribute('data-field')] = u.num(inp.value);
+        });
+        AA.ui.toast('Template range saved.');
       });
-    }
-    body.querySelectorAll('.tpl-min').forEach(function (inp) {
-      inp.addEventListener('change', function () { saveRange(inp, 'min'); AA.ui.toast('Template range saved.'); });
-    });
-    body.querySelectorAll('.tpl-max').forEach(function (inp) {
-      inp.addEventListener('change', function () { saveRange(inp, 'max'); AA.ui.toast('Template range saved.'); });
     });
     body.querySelectorAll('.tpl-deltest').forEach(function (b) {
       b.addEventListener('click', function () {
@@ -221,7 +234,11 @@ AA.views.settings = function (root, params) {
         var sel = body.querySelector('.tpl-test-sel[data-type="' + b.getAttribute('data-type') + '"][data-i="' + b.getAttribute('data-i') + '"]');
         var def = st.getTest(sel.value);
         st.tplMutate(b.getAttribute('data-type'), function (tpl) {
-          tpl.samplePoints[Number(b.getAttribute('data-i'))].tests.push({ testId: sel.value, min: def ? def.defaultMin : null, max: def ? def.defaultMax : null });
+          tpl.samplePoints[Number(b.getAttribute('data-i'))].tests.push({
+            testId: sel.value,
+            low: def ? def.defaultLow : null, high: def ? def.defaultHigh : null,
+            min: def ? def.defaultMin : null, max: def ? def.defaultMax : null
+          });
         });
         rerender();
       });
@@ -340,8 +357,8 @@ AA.views.settings = function (root, params) {
 
       '<div class="card"><h2>Backup & restore</h2>' +
       '<p class="page-sub">' + (AA.env.server
-        ? 'Data lives on the AquaTrack server (data/store.json) and is shared by all signed-in users. Export a JSON snapshot any time; importing replaces the shared workspace for everyone.'
-        : 'Data lives in this browser (localStorage). Export regularly, and use export/import to move data between devices — or run the AquaTrack server (node server.js) for real multi-user sharing.') + '</p>' +
+        ? 'Data lives on the FieldLab server (data/store.json) and is shared by all signed-in users. Export a JSON snapshot any time; importing replaces the shared workspace for everyone.'
+        : 'Data lives in this browser (localStorage). Export regularly, and use export/import to move data between devices — or run the FieldLab server (node server.js) for real multi-user sharing.') + '</p>' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
       '<button class="btn btn-ghost" id="data-export">⬇ Export JSON backup</button>' +
       '<label class="btn btn-ghost" style="margin:0">⬆ Import backup<input type="file" id="data-import" accept="application/json,.json" style="display:none"></label>' +
@@ -363,7 +380,7 @@ AA.views.settings = function (root, params) {
     });
 
     document.getElementById('data-export').addEventListener('click', function () {
-      u.download('aquatrack-backup-' + u.todayISO() + '.json', st.exportJSON(), 'application/json');
+      u.download('fieldlab-backup-' + u.todayISO() + '.json', st.exportJSON(), 'application/json');
     });
 
     document.getElementById('data-import').addEventListener('change', function (e) {

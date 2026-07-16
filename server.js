@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /*
- * AquaTrack server — zero-dependency Node.js (>=16) backend.
+ * FieldLab server — zero-dependency Node.js (>=16) backend.
  *
  *   node server.js            → http://localhost:8080
  *   PORT=3000 node server.js  → custom port
@@ -24,7 +24,7 @@ const crypto = require('crypto');
 
 const PORT = Number(process.env.PORT || 8080);
 const ROOT = __dirname;
-const DATA_DIR = process.env.AQUATRACK_DATA || path.join(ROOT, 'data');
+const DATA_DIR = process.env.FIELDLAB_DATA || process.env.AQUATRACK_DATA || path.join(ROOT, 'data');
 const MAX_BODY = 25 * 1024 * 1024;
 const SESSION_DAYS = 30;
 const HISTORY_KEEP = 25; // past doc versions kept in memory for 3-way write checks
@@ -40,7 +40,7 @@ try {
   console.error('       ' + e.message);
   console.error('Fix: run the process as a user that can write this path (the provided');
   console.error('Dockerfile runs as root for exactly this reason — rebuild from the latest');
-  console.error('code if you see this in a container), or point AQUATRACK_DATA at a');
+  console.error('code if you see this in a container), or point FIELDLAB_DATA at a');
   console.error('writable directory.');
   process.exit(1);
 }
@@ -170,6 +170,10 @@ function ownerMap(doc) {
 /* Reps may only change entities under sites assigned to them (vs. their base
  * version). Shared catalog (tests, templates, products, settings) is open. */
 function guardRepWrite(base, inc, uid) {
+  /* the shared test catalog is admin-only; reps adjust thresholds per site */
+  if (canon(inc.testDefs || []) !== canon(base.testDefs || [])) {
+    return 'Only admins can modify the test catalog. Site-specific ranges are edited on each site’s Test ranges page.';
+  }
   const own = ownerMap(base);
   const SCOPED = ['sites', 'systems', 'samplePoints', 'visits'];
   const incById = {};
@@ -424,7 +428,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log('AquaTrack server running at http://localhost:' + PORT);
+  console.log('FieldLab server running at http://localhost:' + PORT);
   console.log('Data directory: ' + DATA_DIR);
   if (!users.length) console.log('No users yet — open the app in a browser to create the first admin account.');
 });

@@ -1,4 +1,4 @@
-# AquaTrack — design notes
+# FieldLab — design notes
 
 ## Palette
 
@@ -54,7 +54,8 @@ to swap in brand colors (mirrored as CSS custom properties in
 | State | Chip | Where |
 |---|---|---|
 | In range | `✓ OK` (good) | everywhere |
-| Above max / below min | `▲ High` / `▼ Low` (critical) | entry, reports, tables, charts (as triangles) |
+| Outside expected range | `▲ High` / `▼ Low` (serious `#ec835a` wash) | entry, reports, tables, charts (small orange triangles) |
+| Outside ABSOLUTE limits | `‼ Above Max` / `‼ Below Min` (critical, bold) | highest priority — first in action items, larger red triangles + red limit lines on charts |
 | Chronic (3+ consecutive out) | `⟲ Chronic` (critical, filled) | action items, history header |
 | Low product stock | `▼ Low stock` (critical) | inventory, action items |
 | Visited this period | `✓ Visited · July` (good) | sites list, site page, admin |

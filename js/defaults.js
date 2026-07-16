@@ -1,5 +1,5 @@
 /*
- * AquaTrack — default catalog: tests, system templates, products, demo data.
+ * FieldLab — default catalog: tests, system templates, products, demo data.
  * Everything here is a STARTING POINT — all of it is editable in Settings,
  * including creating entirely new system types (chillers, RO, softeners…).
  * Control limits are typical industrial water treatment guidelines. Always
@@ -11,32 +11,32 @@ AA.defaults = (function () {
 
   /* ------------------------------------------------------------ test catalog */
   var TESTS = [
-    { id: 'ph',        name: 'pH',                        unit: '',            decimals: 2, defaultMin: null, defaultMax: null, description: 'Acidity / alkalinity (0–14).' },
-    { id: 'cond',      name: 'Conductivity',              unit: 'µS/cm',       decimals: 0, defaultMin: null, defaultMax: null, description: 'Proxy for total dissolved solids.' },
-    { id: 'tds',       name: 'Total Dissolved Solids',    unit: 'ppm',         decimals: 0, defaultMin: null, defaultMax: null, description: 'Dissolved solids, measured or from conductivity.' },
-    { id: 'p_alk',     name: 'P-Alkalinity',              unit: 'ppm CaCO₃',   decimals: 0, defaultMin: null, defaultMax: null, description: 'Phenolphthalein alkalinity.' },
-    { id: 'm_alk',     name: 'M-Alkalinity (Total)',      unit: 'ppm CaCO₃',   decimals: 0, defaultMin: null, defaultMax: null, description: 'Methyl orange / total alkalinity.' },
-    { id: 'oh_alk',    name: 'OH-Alkalinity',             unit: 'ppm CaCO₃',   decimals: 0, defaultMin: null, defaultMax: null, description: 'Hydroxide alkalinity (2P − M).' },
-    { id: 't_hard',    name: 'Total Hardness',            unit: 'ppm CaCO₃',   decimals: 1, defaultMin: null, defaultMax: null, description: 'Calcium + magnesium hardness.' },
-    { id: 'ca_hard',   name: 'Calcium Hardness',          unit: 'ppm CaCO₃',   decimals: 0, defaultMin: null, defaultMax: null, description: 'Calcium fraction of hardness.' },
-    { id: 'chloride',  name: 'Chloride',                  unit: 'ppm Cl⁻',     decimals: 0, defaultMin: null, defaultMax: null, description: 'Often used to calculate cycles of concentration.' },
-    { id: 'sulphite',  name: 'Sulphite',                  unit: 'ppm SO₃²⁻',   decimals: 0, defaultMin: 20,   defaultMax: 60,   description: 'Oxygen scavenger residual (boiler water).' },
-    { id: 'phosphate', name: 'Phosphate',                 unit: 'ppm PO₄³⁻',   decimals: 1, defaultMin: null, defaultMax: null, description: 'Scale inhibitor / internal treatment residual.' },
-    { id: 'silica',    name: 'Silica',                    unit: 'ppm SiO₂',    decimals: 1, defaultMin: null, defaultMax: 150,  description: 'Silica scale risk indicator.' },
-    { id: 'iron',      name: 'Iron',                      unit: 'ppm Fe',      decimals: 2, defaultMin: null, defaultMax: 1,    description: 'Corrosion product indicator.' },
-    { id: 'copper',    name: 'Copper',                    unit: 'ppm Cu',      decimals: 2, defaultMin: null, defaultMax: 0.05, description: 'Corrosion product indicator (condensate / closed loops).' },
-    { id: 'free_cl',   name: 'Free Chlorine',             unit: 'ppm Cl₂',     decimals: 2, defaultMin: null, defaultMax: null, description: 'Free oxidizing biocide residual.' },
-    { id: 'total_cl',  name: 'Total Chlorine',            unit: 'ppm Cl₂',     decimals: 2, defaultMin: null, defaultMax: null, description: 'Total oxidizing biocide residual.' },
-    { id: 'bromine',   name: 'Bromine',                   unit: 'ppm Br₂',     decimals: 2, defaultMin: null, defaultMax: null, description: 'Bromine biocide residual.' },
-    { id: 'orp',       name: 'ORP',                       unit: 'mV',          decimals: 0, defaultMin: null, defaultMax: null, description: 'Oxidation-reduction potential (biocide effectiveness).' },
-    { id: 'cycles',    name: 'Cycles of Concentration',   unit: 'cycles',      decimals: 1, defaultMin: null, defaultMax: null, description: 'System concentration vs. makeup (e.g. Cl⁻ ratio).' },
-    { id: 'temp',      name: 'Temperature',               unit: '°C',          decimals: 1, defaultMin: null, defaultMax: null, description: 'Water temperature at the sample point.' },
-    { id: 'turbidity', name: 'Turbidity',                 unit: 'NTU',         decimals: 1, defaultMin: null, defaultMax: null, description: 'Suspended solids / clarity.' },
-    { id: 'azole',     name: 'Azole',                     unit: 'ppm',         decimals: 1, defaultMin: null, defaultMax: null, description: 'Yellow-metal corrosion inhibitor residual.' },
-    { id: 'molybdate', name: 'Molybdate',                 unit: 'ppm Mo',      decimals: 1, defaultMin: null, defaultMax: null, description: 'Tracer / corrosion inhibitor residual.' },
-    { id: 'nitrite',   name: 'Nitrite',                   unit: 'ppm NO₂⁻',    decimals: 0, defaultMin: null, defaultMax: null, description: 'Closed-loop corrosion inhibitor residual.' },
-    { id: 'glycol',    name: 'Glycol',                    unit: '%',           decimals: 1, defaultMin: null, defaultMax: null, description: 'Freeze protection concentration (closed loops).' },
-    { id: 'dip_slide', name: 'Dip Slide (Aerobic Count)', unit: 'CFU/mL',      decimals: 0, defaultMin: null, defaultMax: 10000, description: 'Microbiological activity (48 h incubation).' }
+    { id: 'ph',        name: 'pH',                        unit: '',            decimals: 2, defaultLow: null, defaultHigh: null, description: 'Acidity / alkalinity (0–14).' },
+    { id: 'cond',      name: 'Conductivity',              unit: 'µS/cm',       decimals: 0, defaultLow: null, defaultHigh: null, description: 'Proxy for total dissolved solids.' },
+    { id: 'tds',       name: 'Total Dissolved Solids',    unit: 'ppm',         decimals: 0, defaultLow: null, defaultHigh: null, description: 'Dissolved solids, measured or from conductivity.' },
+    { id: 'p_alk',     name: 'P-Alkalinity',              unit: 'ppm CaCO₃',   decimals: 0, defaultLow: null, defaultHigh: null, description: 'Phenolphthalein alkalinity.' },
+    { id: 'm_alk',     name: 'M-Alkalinity (Total)',      unit: 'ppm CaCO₃',   decimals: 0, defaultLow: null, defaultHigh: null, description: 'Methyl orange / total alkalinity.' },
+    { id: 'oh_alk',    name: 'OH-Alkalinity',             unit: 'ppm CaCO₃',   decimals: 0, defaultLow: null, defaultHigh: null, description: 'Hydroxide alkalinity (2P − M).' },
+    { id: 't_hard',    name: 'Total Hardness',            unit: 'ppm CaCO₃',   decimals: 1, defaultLow: null, defaultHigh: null, description: 'Calcium + magnesium hardness.' },
+    { id: 'ca_hard',   name: 'Calcium Hardness',          unit: 'ppm CaCO₃',   decimals: 0, defaultLow: null, defaultHigh: null, description: 'Calcium fraction of hardness.' },
+    { id: 'chloride',  name: 'Chloride',                  unit: 'ppm Cl⁻',     decimals: 0, defaultLow: null, defaultHigh: null, description: 'Often used to calculate cycles of concentration.' },
+    { id: 'sulphite',  name: 'Sulphite',                  unit: 'ppm SO₃²⁻',   decimals: 0, defaultLow: 20,   defaultHigh: 60,   description: 'Oxygen scavenger residual (boiler water).' },
+    { id: 'phosphate', name: 'Phosphate',                 unit: 'ppm PO₄³⁻',   decimals: 1, defaultLow: null, defaultHigh: null, description: 'Scale inhibitor / internal treatment residual.' },
+    { id: 'silica',    name: 'Silica',                    unit: 'ppm SiO₂',    decimals: 1, defaultLow: null, defaultHigh: 150,  description: 'Silica scale risk indicator.' },
+    { id: 'iron',      name: 'Iron',                      unit: 'ppm Fe',      decimals: 2, defaultLow: null, defaultHigh: 1,    description: 'Corrosion product indicator.' },
+    { id: 'copper',    name: 'Copper',                    unit: 'ppm Cu',      decimals: 2, defaultLow: null, defaultHigh: 0.05, description: 'Corrosion product indicator (condensate / closed loops).' },
+    { id: 'free_cl',   name: 'Free Chlorine',             unit: 'ppm Cl₂',     decimals: 2, defaultLow: null, defaultHigh: null, description: 'Free oxidizing biocide residual.' },
+    { id: 'total_cl',  name: 'Total Chlorine',            unit: 'ppm Cl₂',     decimals: 2, defaultLow: null, defaultHigh: null, description: 'Total oxidizing biocide residual.' },
+    { id: 'bromine',   name: 'Bromine',                   unit: 'ppm Br₂',     decimals: 2, defaultLow: null, defaultHigh: null, description: 'Bromine biocide residual.' },
+    { id: 'orp',       name: 'ORP',                       unit: 'mV',          decimals: 0, defaultLow: null, defaultHigh: null, description: 'Oxidation-reduction potential (biocide effectiveness).' },
+    { id: 'cycles',    name: 'Cycles of Concentration',   unit: 'cycles',      decimals: 1, defaultLow: null, defaultHigh: null, description: 'System concentration vs. makeup (e.g. Cl⁻ ratio).' },
+    { id: 'temp',      name: 'Temperature',               unit: '°C',          decimals: 1, defaultLow: null, defaultHigh: null, description: 'Water temperature at the sample point.' },
+    { id: 'turbidity', name: 'Turbidity',                 unit: 'NTU',         decimals: 1, defaultLow: null, defaultHigh: null, description: 'Suspended solids / clarity.' },
+    { id: 'azole',     name: 'Azole',                     unit: 'ppm',         decimals: 1, defaultLow: null, defaultHigh: null, description: 'Yellow-metal corrosion inhibitor residual.' },
+    { id: 'molybdate', name: 'Molybdate',                 unit: 'ppm Mo',      decimals: 1, defaultLow: null, defaultHigh: null, description: 'Tracer / corrosion inhibitor residual.' },
+    { id: 'nitrite',   name: 'Nitrite',                   unit: 'ppm NO₂⁻',    decimals: 0, defaultLow: null, defaultHigh: null, description: 'Closed-loop corrosion inhibitor residual.' },
+    { id: 'glycol',    name: 'Glycol',                    unit: '%',           decimals: 1, defaultLow: null, defaultHigh: null, description: 'Freeze protection concentration (closed loops).' },
+    { id: 'dip_slide', name: 'Dip Slide (Aerobic Count)', unit: 'CFU/mL',      decimals: 0, defaultLow: null, defaultHigh: 10000, description: 'Microbiological activity (48 h incubation).' }
   ];
 
   /* ------------------------------------------------- system-type templates
@@ -49,13 +49,13 @@ AA.defaults = (function () {
       {
         name: 'Loop Water',
         tests: [
-          { testId: 'ph',        min: 8.5,  max: 10.5 },
-          { testId: 'cond',      min: null, max: null },
-          { testId: 'nitrite',   min: 500,  max: 1000 },
-          { testId: 'molybdate', min: null, max: null },
-          { testId: 'glycol',    min: null, max: null },
-          { testId: 'iron',      min: null, max: 1 },
-          { testId: 'copper',    min: null, max: 0.2 }
+          { testId: 'ph',        low: 8.5,  high: 10.5 },
+          { testId: 'cond',      low: null, high: null },
+          { testId: 'nitrite',   low: 500,  high: 1000 },
+          { testId: 'molybdate', low: null, high: null },
+          { testId: 'glycol',    low: null, high: null },
+          { testId: 'iron',      low: null, high: 1 },
+          { testId: 'copper',    low: null, high: 0.2 }
         ]
       }
     ]
@@ -68,48 +68,48 @@ AA.defaults = (function () {
         {
           name: 'Makeup Water',
           tests: [
-            { testId: 'ph',       min: 6.5,  max: 8.5 },
-            { testId: 'cond',     min: null, max: null },
-            { testId: 't_hard',   min: null, max: 1 },
-            { testId: 'm_alk',    min: null, max: null },
-            { testId: 'chloride', min: null, max: null },
-            { testId: 'iron',     min: null, max: 0.3 }
+            { testId: 'ph',       low: 6.5,  high: 8.5 },
+            { testId: 'cond',     low: null, high: null },
+            { testId: 't_hard',   low: null, high: 1 },
+            { testId: 'm_alk',    low: null, high: null },
+            { testId: 'chloride', low: null, high: null },
+            { testId: 'iron',     low: null, high: 0.3 }
           ]
         },
         {
           name: 'Feedwater',
           tests: [
-            { testId: 'ph',     min: 8.3,  max: 10 },
-            { testId: 'cond',   min: null, max: null },
-            { testId: 't_hard', min: null, max: 1 },
-            { testId: 'iron',   min: null, max: 0.1 }
+            { testId: 'ph',     low: 8.3,  high: 10 },
+            { testId: 'cond',   low: null, high: null },
+            { testId: 't_hard', low: null, high: 1 },
+            { testId: 'iron',   low: null, high: 0.1 }
           ]
         },
         {
           name: 'Boiler Water',
           tests: [
-            { testId: 'ph',        min: 10.5, max: 12 },
-            { testId: 'cond',      min: 1000, max: 3500 },
-            { testId: 'tds',       min: null, max: 3500 },
-            { testId: 'p_alk',     min: 200,  max: 700 },
-            { testId: 'm_alk',     min: null, max: 900 },
-            { testId: 'oh_alk',    min: 200,  max: 600 },
-            { testId: 'sulphite',  min: 20,   max: 60 },
-            { testId: 'phosphate', min: 30,   max: 60 },
-            { testId: 'chloride',  min: null, max: 300 },
-            { testId: 't_hard',    min: null, max: 1 },
-            { testId: 'silica',    min: null, max: 150 },
-            { testId: 'iron',      min: null, max: 1 }
+            { testId: 'ph',        low: 10.5, high: 12, min: 10, max: 12.8 },
+            { testId: 'cond',      low: 1000, high: 3500 },
+            { testId: 'tds',       low: null, high: 3500 },
+            { testId: 'p_alk',     low: 200,  high: 700 },
+            { testId: 'm_alk',     low: null, high: 900 },
+            { testId: 'oh_alk',    low: 200,  high: 600 },
+            { testId: 'sulphite',  low: 20,   high: 60, min: 10 },
+            { testId: 'phosphate', low: 30,   high: 60 },
+            { testId: 'chloride',  low: null, high: 300 },
+            { testId: 't_hard',    low: null, high: 1 },
+            { testId: 'silica',    low: null, high: 150 },
+            { testId: 'iron',      low: null, high: 1 }
           ]
         },
         {
           name: 'Condensate',
           tests: [
-            { testId: 'ph',     min: 7.5,  max: 9 },
-            { testId: 'cond',   min: null, max: 40 },
-            { testId: 't_hard', min: null, max: 1 },
-            { testId: 'iron',   min: null, max: 0.1 },
-            { testId: 'copper', min: null, max: 0.05 }
+            { testId: 'ph',     low: 7.5,  high: 9 },
+            { testId: 'cond',   low: null, high: 40 },
+            { testId: 't_hard', low: null, high: 1 },
+            { testId: 'iron',   low: null, high: 0.1, max: 0.25 },
+            { testId: 'copper', low: null, high: 0.05 }
           ]
         }
       ]
@@ -120,34 +120,34 @@ AA.defaults = (function () {
         {
           name: 'Makeup Water',
           tests: [
-            { testId: 'ph',       min: 6.5,  max: 8.5 },
-            { testId: 'cond',     min: null, max: null },
-            { testId: 't_hard',   min: null, max: null },
-            { testId: 'ca_hard',  min: null, max: null },
-            { testId: 'm_alk',    min: null, max: null },
-            { testId: 'chloride', min: null, max: null },
-            { testId: 'silica',   min: null, max: null },
-            { testId: 'iron',     min: null, max: 0.3 }
+            { testId: 'ph',       low: 6.5,  high: 8.5 },
+            { testId: 'cond',     low: null, high: null },
+            { testId: 't_hard',   low: null, high: null },
+            { testId: 'ca_hard',  low: null, high: null },
+            { testId: 'm_alk',    low: null, high: null },
+            { testId: 'chloride', low: null, high: null },
+            { testId: 'silica',   low: null, high: null },
+            { testId: 'iron',     low: null, high: 0.3 }
           ]
         },
         {
           name: 'Recirculating Water',
           tests: [
-            { testId: 'ph',        min: 7.5,  max: 9 },
-            { testId: 'cond',      min: null, max: 2500 },
-            { testId: 't_hard',    min: null, max: null },
-            { testId: 'ca_hard',   min: null, max: 600 },
-            { testId: 'm_alk',     min: 100,  max: 500 },
-            { testId: 'chloride',  min: null, max: null },
-            { testId: 'cycles',    min: 3,    max: 8 },
-            { testId: 'free_cl',   min: 0.5,  max: 1 },
-            { testId: 'orp',       min: 400,  max: 650 },
-            { testId: 'phosphate', min: 8,    max: 15 },
-            { testId: 'azole',     min: 1,    max: 3 },
-            { testId: 'iron',      min: null, max: 1 },
-            { testId: 'silica',    min: null, max: 150 },
-            { testId: 'temp',      min: null, max: null },
-            { testId: 'dip_slide', min: null, max: 10000 }
+            { testId: 'ph',        low: 7.5,  high: 9, min: 6.5, max: 9.5 },
+            { testId: 'cond',      low: null, high: 2500 },
+            { testId: 't_hard',    low: null, high: null },
+            { testId: 'ca_hard',   low: null, high: 600 },
+            { testId: 'm_alk',     low: 100,  high: 500 },
+            { testId: 'chloride',  low: null, high: null },
+            { testId: 'cycles',    low: 3,    high: 8 },
+            { testId: 'free_cl',   low: 0.5,  high: 1, min: 0.2, max: 2 },
+            { testId: 'orp',       low: 400,  high: 650 },
+            { testId: 'phosphate', low: 8,    high: 15 },
+            { testId: 'azole',     low: 1,    high: 3 },
+            { testId: 'iron',      low: null, high: 1 },
+            { testId: 'silica',    low: null, high: 150 },
+            { testId: 'temp',      low: null, high: null },
+            { testId: 'dip_slide', low: null, high: 10000, max: 50000 }
           ]
         }
       ]
@@ -166,7 +166,7 @@ AA.defaults = (function () {
 
   function blank() {
     return {
-      version: 3,
+      version: 4,
       settings: { companyName: '', defaultRep: '' },
       testDefs: AA.util.clone(TESTS),
       templates: AA.util.clone(TEMPLATES),

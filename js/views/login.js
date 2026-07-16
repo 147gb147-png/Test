@@ -1,4 +1,4 @@
-/* AquaTrack — sign-in / first-run setup screens (server mode) */
+/* FieldLab — sign-in / first-run setup screens (server mode) */
 window.AA = window.AA || {};
 AA.views = AA.views || {};
 
@@ -10,7 +10,7 @@ AA.views.login = function (root) {
     /* ---- first run: create the admin account ---- */
     root.innerHTML =
       '<div class="login-wrap"><div class="card login-card">' +
-      '<div class="login-brand">💧 <strong>AquaTrack</strong></div>' +
+      '<div class="login-brand">💧 <strong>FieldLab</strong></div>' +
       '<h2>Welcome — let’s set up your workspace</h2>' +
       '<p class="page-sub">Create the administrator account first. You can add your reps afterwards under <strong>Admin → Users</strong>.</p>' +
       '<form id="setup-form">' +
@@ -45,7 +45,7 @@ AA.views.login = function (root) {
 
   root.innerHTML =
     '<div class="login-wrap"><div class="card login-card">' +
-    '<div class="login-brand">💧 <strong>AquaTrack</strong></div>' +
+    '<div class="login-brand">💧 <strong>FieldLab</strong></div>' +
     '<h2>Sign in</h2>' +
     '<form id="login-form">' +
     (ll.users.length

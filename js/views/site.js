@@ -1,4 +1,4 @@
-/* AquaTrack — site detail, system detail (sample points & tests), test history */
+/* FieldLab — site detail, system detail (sample points & tests), test history */
 window.AA = window.AA || {};
 AA.views = AA.views || {};
 
@@ -28,6 +28,7 @@ AA.views.site = function (root, params) {
       (repName ? ' · rep: <strong>' + u.esc(repName) + '</strong>' : '') + '</p>' : '') +
     '</div><div class="actions">' +
     (canEdit ? '<a class="btn btn-primary" href="#/visit/new?site=' + site.id + '">+ New Visit</a>' : '') +
+    '<a class="btn btn-ghost" href="#/ranges/' + site.id + '">🎯 Test ranges</a>' +
     (canEdit ? '<button class="btn btn-ghost" id="site-edit">Edit site</button>' : '') +
     (canEdit ? '<button class="btn btn-danger" id="site-del">Delete</button>' : '') +
     '</div></div>';
@@ -338,16 +339,21 @@ AA.views.system = function (root, params) {
         bodyHTML:
           '<label class="f">Test<select name="testId">' + opts + '</select></label>' +
           '<div class="f-row">' +
-          '<label class="f">Expected min <span class="f-hint">(blank = test default)</span><input name="min" type="number" step="any"></label>' +
-          '<label class="f">Expected max <span class="f-hint">(blank = test default)</span><input name="max" type="number" step="any"></label>' +
+          '<label class="f">Expected low <span class="f-hint">(blank = default)</span><input name="low" type="number" step="any"></label>' +
+          '<label class="f">Expected high <span class="f-hint">(blank = default)</span><input name="high" type="number" step="any"></label>' +
           '</div>' +
-          '<p class="f-hint">Don’t see the test you need? Create it in Settings → Tests, then add it here.</p>',
+          '<div class="f-row">' +
+          '<label class="f">Absolute min <span class="f-hint">(hard limit)</span><input name="min" type="number" step="any"></label>' +
+          '<label class="f">Absolute max <span class="f-hint">(hard limit)</span><input name="max" type="number" step="any"></label>' +
+          '</div>' +
+          '<p class="f-hint">Don’t see the test you need? ' + (AA.env.server && AA.auth.user && AA.auth.user.role !== 'admin' ? 'Ask an admin to create it in Settings → Tests.' : 'Create it in Settings → Tests, then add it here.') + '</p>',
         submitLabel: 'Add test',
         onSubmit: function (form, close) {
+          var f = form.elements;
           st.addTestToPoint(pt.id, {
-            testId: form.elements.testId.value,
-            min: u.num(form.elements.min.value),
-            max: u.num(form.elements.max.value)
+            testId: f.testId.value,
+            low: u.num(f.low.value), high: u.num(f.high.value),
+            min: u.num(f.min.value), max: u.num(f.max.value)
           });
           close(); rerender();
         }
@@ -373,28 +379,99 @@ AA.views.system = function (root, params) {
   });
 };
 
-/* Shared: edit the expected range for one test at one sample point */
+/* Shared: edit the four thresholds for one test at one sample point.
+ * low/high = expected range (▼/▲ flags); min/max = absolute limits (‼ flags,
+ * highest priority). Blank inherits the test's default. */
 AA.views._editRange = function (pointId, testId, onDone) {
   var u = AA.util, st = AA.store;
   var pt = st.getPoint(pointId);
   var def = st.getTest(testId);
   var entry = pt.tests.find(function (t) { return t.testId === testId; });
   if (!entry) return;
-  var defText = u.rangeText({ min: def.defaultMin, max: def.defaultMax });
+  var defText = u.rangeText({ low: def.defaultLow, high: def.defaultHigh, min: def.defaultMin, max: def.defaultMax });
   AA.ui.modal({
-    title: 'Expected Range — ' + def.name,
+    title: 'Ranges — ' + def.name,
     bodyHTML:
-      '<p class="f-hint">For <strong>' + u.esc(pt.name) + '</strong>. Leave blank to inherit the test default (' + u.esc(defText) + '). Values outside the range are flagged on entry, in reports and on trends.</p>' +
+      '<p class="f-hint">For <strong>' + u.esc(pt.name) + '</strong>' + (def.unit ? ' (' + u.esc(def.unit) + ')' : '') + '. Blank inherits the test default (' + u.esc(defText) + '). Values outside the expected range flag ▼ Low / ▲ High; values beyond the absolute limits flag ‼ — highest priority.</p>' +
       '<div class="f-row">' +
-      '<label class="f">Min' + (def.unit ? ' <span class="f-hint">' + u.esc(def.unit) + '</span>' : '') + '<input name="min" type="number" step="any" value="' + (entry.min != null ? entry.min : '') + '"></label>' +
-      '<label class="f">Max' + (def.unit ? ' <span class="f-hint">' + u.esc(def.unit) + '</span>' : '') + '<input name="max" type="number" step="any" value="' + (entry.max != null ? entry.max : '') + '"></label>' +
+      '<label class="f">Expected low<input name="low" type="number" step="any" value="' + (entry.low != null ? entry.low : '') + '"></label>' +
+      '<label class="f">Expected high<input name="high" type="number" step="any" value="' + (entry.high != null ? entry.high : '') + '"></label>' +
+      '</div>' +
+      '<div class="f-row">' +
+      '<label class="f">Absolute min <span class="f-hint">(hard limit)</span><input name="min" type="number" step="any" value="' + (entry.min != null ? entry.min : '') + '"></label>' +
+      '<label class="f">Absolute max <span class="f-hint">(hard limit)</span><input name="max" type="number" step="any" value="' + (entry.max != null ? entry.max : '') + '"></label>' +
       '</div>',
     onSubmit: function (form, close) {
-      st.setPointTestRange(pt.id, testId, u.num(form.elements.min.value), u.num(form.elements.max.value));
+      var f = form.elements;
+      st.setPointTestRange(pt.id, testId, {
+        low: u.num(f.low.value), high: u.num(f.high.value),
+        min: u.num(f.min.value), max: u.num(f.max.value)
+      });
       close();
-      AA.ui.toast('Range updated — history is re-flagged against the new range.', 'success');
+      AA.ui.toast('Ranges updated — history is re-flagged against the new thresholds.', 'success');
       if (onDone) onDone();
     }
+  });
+};
+
+/* -------------------------------------- per-site ranges (all thresholds) */
+AA.views.ranges = function (root, params) {
+  var u = AA.util, st = AA.store;
+  var site = st.getSite(params[0]);
+  if (!site) { root.innerHTML = '<div class="card"><div class="empty">Site not found.</div></div>'; return; }
+  var canEdit = st.canEditSite(site);
+  var systems = st.systemsOf(site.id);
+
+  var html =
+    '<div class="page-head"><div class="grow">' +
+    '<div class="crumbs"><a href="#/sites">Sites</a> / <a href="#/site/' + site.id + '">' + u.esc(site.name) + '</a> / Test ranges</div>' +
+    '<h1>🎯 Test Ranges — ' + u.esc(site.name) + '</h1>' +
+    '<p class="page-sub">Every threshold at this site in one place. <strong>Expected low/high</strong> flag ▼/▲; <strong>absolute min/max</strong> are the hard limits and flag ‼ with highest priority. Blank inherits the test default (shown greyed). Changes apply immediately' +
+    (canEdit ? '' : ' — read-only: this site is not assigned to you') + '.</p>' +
+    '</div></div>';
+
+  if (!systems.length) html += '<div class="card"><div class="empty">No systems at this site yet.</div></div>';
+
+  systems.forEach(function (sys) {
+    var points = st.pointsOf(sys.id);
+    html += '<div class="card"><h2>' + u.esc(sys.name) + '</h2>';
+    points.forEach(function (pt) {
+      html += '<div class="vp-point"><h4>🧪 ' + u.esc(pt.name) + '</h4>' +
+        '<div class="table-wrap"><table class="data"><thead><tr>' +
+        '<th>Test</th><th>Expected low</th><th>Expected high</th><th>Absolute min</th><th>Absolute max</th><th>Effective</th></tr></thead><tbody>';
+      pt.tests.forEach(function (t) {
+        var def = st.getTest(t.testId);
+        if (!def) return;
+        function cell(field, defVal) {
+          return '<td><input class="ranges-input rng" type="number" step="any" ' + (canEdit ? '' : 'disabled ') +
+            'data-pt="' + pt.id + '" data-test="' + u.esc(def.id) + '" data-field="' + field + '" ' +
+            'value="' + (t[field] != null ? t[field] : '') + '" placeholder="' + (defVal != null ? defVal : '—') + '"></td>';
+        }
+        html += '<tr><td><strong>' + u.esc(def.name) + '</strong>' + (def.unit ? ' <span class="td-sub">' + u.esc(def.unit) + '</span>' : '') + '</td>' +
+          cell('low', def.defaultLow) + cell('high', def.defaultHigh) +
+          cell('min', def.defaultMin) + cell('max', def.defaultMax) +
+          '<td class="td-sub rng-eff" data-pt="' + pt.id + '" data-test="' + u.esc(def.id) + '">' + u.esc(u.rangeText(st.effRange(pt, def.id))) + '</td></tr>';
+      });
+      html += '</tbody></table></div></div>';
+    });
+    html += '</div>';
+  });
+
+  root.innerHTML = html;
+  if (!canEdit) return;
+
+  root.querySelectorAll('.rng').forEach(function (inp) {
+    inp.addEventListener('change', function () {
+      var pt = st.getPoint(inp.getAttribute('data-pt'));
+      var testId = inp.getAttribute('data-test');
+      var entry = pt.tests.find(function (t) { return t.testId === testId; });
+      if (!entry) return;
+      entry[inp.getAttribute('data-field')] = u.num(inp.value);
+      st.setPointTestRange(pt.id, testId, { low: entry.low, high: entry.high, min: entry.min, max: entry.max });
+      var eff = root.querySelector('.rng-eff[data-pt="' + pt.id + '"][data-test="' + testId + '"]');
+      if (eff) eff.textContent = u.rangeText(st.effRange(pt, testId));
+      AA.ui.toast('Range saved — history re-flagged.', 'success');
+    });
   });
 };
 
@@ -414,7 +491,7 @@ AA.views.history = function (root, params) {
   function render() {
     var hist = AA.filters.filterHistory(fullHist);
     hist.forEach(function (h) { h.flag = st.evalFlag(h.value, range); });
-    var flagged = hist.filter(function (h) { return h.flag === 'low' || h.flag === 'high'; }).length;
+    var flagged = hist.filter(function (h) { return st.isOut(h.flag); }).length;
 
     var stats = null;
     if (hist.length) {
@@ -437,7 +514,7 @@ AA.views.history = function (root, params) {
       (def.description ? ' · ' + u.esc(def.description) : '') + '</p>' +
       '</div><div class="actions">' +
       '<button class="btn btn-ghost" id="hist-csv">⬇ CSV</button>' +
-      (canEdit ? '<button class="btn btn-ghost" id="hist-range">Edit expected range</button>' : '') +
+      (canEdit ? '<button class="btn btn-ghost" id="hist-range">Edit ranges</button>' : '') +
       '</div></div>';
 
     html += AA.filters.rowHTML();
@@ -480,14 +557,16 @@ AA.views.history = function (root, params) {
     AA.filters.wireRow(root, render);
 
     document.getElementById('hist-csv').addEventListener('click', function () {
-      var rows = [['Date', 'Test', 'Sample point', 'System', 'Site', 'Value', 'Unit', 'Expected min', 'Expected max', 'Status', 'Rep', 'Comment']];
+      var rows = [['Date', 'Test', 'Sample point', 'System', 'Site', 'Value', 'Unit', 'Expected low', 'Expected high', 'Absolute min', 'Absolute max', 'Status', 'Rep', 'Comment']];
       hist.forEach(function (h) {
         rows.push([h.date, def.name, pt.name, sys ? sys.name : '', site ? site.name : '',
-          h.value, def.unit, range.min != null ? range.min : '', range.max != null ? range.max : '',
+          h.value, def.unit,
+          range.low != null ? range.low : '', range.high != null ? range.high : '',
+          range.min != null ? range.min : '', range.max != null ? range.max : '',
           h.flag || '', h.rep || '', h.comment || '']);
       });
       var csv = rows.map(function (r) { return r.map(u.csvCell).join(','); }).join('\n');
-      u.download('aquatrack-' + u.slug(site ? site.name : 'site') + '-' + u.slug(def.name) + '.csv', csv, 'text/csv');
+      u.download('fieldlab-' + u.slug(site ? site.name : 'site') + '-' + u.slug(def.name) + '.csv', csv, 'text/csv');
     });
 
     var rangeBtn = document.getElementById('hist-range');

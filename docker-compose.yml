@@ -1,21 +1,21 @@
-# AquaTrack — self-host with Docker Compose
+# FieldLab — self-host with Docker Compose
 #
 #   docker compose up -d
 #   → http://your-server:8080
 #
 # All data (workspace, user accounts, sessions) persists in the named
-# volume "aquatrack-data". Back it up with:
-#   docker run --rm -v aquatrack-data:/d -v $PWD:/backup alpine \
-#     tar czf /backup/aquatrack-backup.tgz -C /d .
+# volume "fieldlab-data". Back it up with:
+#   docker run --rm -v fieldlab-data:/d -v $PWD:/backup alpine \
+#     tar czf /backup/fieldlab-backup.tgz -C /d .
 
 services:
-  aquatrack:
+  fieldlab:
     build: .
     restart: unless-stopped
     ports:
       - "8080:8080"
     volumes:
-      - aquatrack-data:/app/data
+      - fieldlab-data:/app/data
 
 volumes:
-  aquatrack-data:
+  fieldlab-data:

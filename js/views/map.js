@@ -1,4 +1,4 @@
-/* AquaTrack — interactive site map (Leaflet + OpenStreetMap) */
+/* FieldLab — interactive site map (Leaflet + OpenStreetMap) */
 window.AA = window.AA || {};
 AA.views = AA.views || {};
 

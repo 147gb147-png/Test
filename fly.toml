@@ -1,9 +1,9 @@
-# Fly.io config for AquaTrack — see docs/DEPLOY.md
+# Fly.io config for FieldLab — see docs/DEPLOY.md
 #
 #   fly launch --copy-config --no-deploy   (accept the app name prompt)
-#   fly volumes create aquatrack_data --size 1
+#   fly volumes create fieldlab_data --size 1
 #   fly deploy
-app = "aquatrack"        # change to your unique app name
+app = "fieldlab"        # change to your unique app name
 primary_region = "ord"    # pick the region closest to your team
 
 [build]
@@ -12,7 +12,7 @@ primary_region = "ord"    # pick the region closest to your team
   PORT = "8080"
 
 [[mounts]]
-  source = "aquatrack_data"
+  source = "fieldlab_data"
   destination = "/app/data"
 
 [http_service]

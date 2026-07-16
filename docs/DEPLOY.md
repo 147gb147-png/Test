@@ -1,6 +1,6 @@
-# Hosting AquaTrack online
+# Hosting FieldLab online
 
-AquaTrack is one Node process with a `data/` folder — anything that can run
+FieldLab is one Node process with a `data/` folder — anything that can run
 Node (or Docker) and keep a persistent disk can host it. Every option below
 gives your whole team one URL, one shared workspace, and permanent storage.
 
@@ -44,7 +44,7 @@ data) is untouched by deploys.
 # one-time: install flyctl and sign in  →  https://fly.io/docs/flyctl/install/
 fly launch --copy-config --no-deploy   # uses the fly.toml in this repo;
                                        # pick a unique app name + region
-fly volumes create aquatrack_data --size 1
+fly volumes create fieldlab_data --size 1
 fly deploy
 fly open
 ```
@@ -63,7 +63,7 @@ its free tier has an ephemeral disk and would lose your data on redeploy.
 Works on DigitalOcean, Hetzner, Linode, Lightsail, a spare office machine…
 
 ```bash
-git clone <your-repo-url> aquatrack && cd aquatrack
+git clone <your-repo-url> fieldlab && cd fieldlab
 docker compose up -d          # app on port 8080, data in a named volume
 ```
 
@@ -88,7 +88,7 @@ No Docker? Plain Node works the same:
 
 ```bash
 node server.js                          # or keep it alive with systemd/pm2:
-sudo npm i -g pm2 && pm2 start server.js --name aquatrack && pm2 save
+sudo npm i -g pm2 && pm2 start server.js --name fieldlab && pm2 save
 ```
 
 ---

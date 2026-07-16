@@ -1,4 +1,4 @@
-/* AquaTrack — Admin: rep overview, per-rep drill-down, user management */
+/* FieldLab — Admin: rep overview, per-rep drill-down, user management */
 window.AA = window.AA || {};
 AA.views = AA.views || {};
 
@@ -9,7 +9,7 @@ AA.views.admin = function (root) {
   if (!AA.env.server) {
     root.innerHTML =
       '<div class="page-head"><div class="grow"><h1>Admin</h1></div></div>' +
-      '<div class="card"><div class="empty">Multi-user features need the AquaTrack server.<br>' +
+      '<div class="card"><div class="empty">Multi-user features need the FieldLab server.<br>' +
       'Run <code>node server.js</code> and open the app through it (see README) to manage reps, accounts and shared data.</div></div>';
     return;
   }

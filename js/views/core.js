@@ -1,4 +1,4 @@
-/* AquaTrack — dashboard + sites list + shared site form (rep-scoped) */
+/* FieldLab — dashboard + sites list + shared site form (rep-scoped) */
 window.AA = window.AA || {};
 AA.views = AA.views || {};
 AA.forms = AA.forms || {};
@@ -138,7 +138,7 @@ AA.views.dashboard = function (root) {
     root.innerHTML =
       '<div class="page-head"><div class="grow"><h1>Dashboard</h1></div></div>' +
       '<div class="card"><div class="empty">' +
-      '  <h2>Welcome to AquaTrack 💧</h2>' +
+      '  <h2>Welcome to FieldLab 💧</h2>' +
       '  <p>Track water treatment test data across your customer sites:<br>' +
       '  <strong>Site → System → Sample Points → Tests → Data</strong>, with expected ranges, flags, comments, trends and a site map.</p>' +
       '  <p><button class="btn btn-primary" id="dash-add-site">+ Add your first site</button>&nbsp;' +
